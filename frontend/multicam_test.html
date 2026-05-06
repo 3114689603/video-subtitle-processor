@@ -1,0 +1,474 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>多机位字幕拼接测试</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: 'Segoe UI', sans-serif; background: #1a1a2e; color: #eee; min-height: 100vh; padding: 20px; }
+        .container { max-width: 1000px; margin: 0 auto; }
+
+        h1 { text-align: center; color: #00d4ff; margin-bottom: 30px; }
+
+        .card { background: #16213e; border-radius: 12px; padding: 24px; margin-bottom: 20px; }
+        .card h2 { color: #00d4ff; margin-bottom: 16px; font-size: 1.1rem; }
+
+        .upload-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; }
+        .upload-box {
+            border: 2px dashed #0f3460; border-radius: 8px; padding: 40px 20px;
+            text-align: center; cursor: pointer; transition: all 0.3s;
+        }
+        .upload-box:hover { border-color: #00d4ff; background: rgba(0,212,255,0.1); }
+        .upload-box.uploaded { border-color: #00ff88; background: rgba(0,255,136,0.1); }
+        .upload-box i { font-size: 2rem; color: #00d4ff; margin-bottom: 8px; }
+        .upload-box p { font-size: 0.9rem; color: #888; }
+        .upload-box input { display: none; }
+
+        .btn {
+            background: linear-gradient(135deg, #00d4ff, #0066ff);
+            border: none; border-radius: 8px; padding: 12px 24px;
+            color: white; font-weight: 600; cursor: pointer; transition: all 0.3s;
+            width: 100%; margin-top: 16px;
+        }
+        .btn:hover { transform: translateY(-2px); box-shadow: 0 4px 15px rgba(0,212,255,0.4); }
+        .btn:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
+        .btn-secondary { background: #0f3460; }
+
+        textarea {
+            width: 100%; min-height: 120px; background: #0f3460; border: 1px solid #16213e;
+            border-radius: 8px; padding: 12px; color: #eee; font-family: monospace;
+        }
+        textarea:focus { outline: none; border-color: #00d4ff; }
+
+        .status { background: #0f3460; border-radius: 8px; padding: 12px; margin-top: 12px; }
+        .status.success { border-left: 4px solid #00ff88; }
+        .status.error { border-left: 4px solid #ff4757; }
+        .status.info { border-left: 4px solid #00d4ff; }
+
+        .subtitle-list { max-height: 300px; overflow-y: auto; }
+        .subtitle-item {
+            padding: 10px 12px; background: #0f3460; border-radius: 6px; margin-bottom: 8px;
+            display: flex; gap: 12px; align-items: center;
+        }
+        .subtitle-item .time { color: #00d4ff; font-family: monospace; min-width: 80px; }
+        .subtitle-item .text { flex: 1; }
+
+        .results-table { width: 100%; border-collapse: collapse; }
+        .results-table th, .results-table td { padding: 10px; text-align: left; border-bottom: 1px solid #0f3460; }
+        .results-table th { color: #00d4ff; }
+        .results-table .found { color: #00ff88; }
+        .results-table .not-found { color: #ff4757; }
+
+        .progress { height: 8px; background: #0f3460; border-radius: 4px; overflow: hidden; margin-top: 12px; }
+        .progress-fill { height: 100%; background: linear-gradient(90deg, #00d4ff, #00ff88); width: 0%; transition: width 0.3s; }
+
+        .api-status { text-align: center; padding: 8px; background: #0f3460; border-radius: 8px; margin-bottom: 20px; }
+        .api-status.connected { color: #00ff88; }
+        .api-status.error { color: #ff4757; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>多机位字幕拼接测试</h1>
+
+        <div class="api-status" id="apiStatus">连接中...</div>
+
+        <!-- Step 1: 上传视频 -->
+        <div class="card">
+            <h2>Step 1: 上传多机位视频（最多3个）</h2>
+            <div class="upload-grid">
+                <div class="upload-box" onclick="document.getElementById('cam1').click()">
+                    <i class="fas fa-video"></i>
+                    <p>机位 1 (音频)</p>
+                    <input type="file" id="cam1" accept="video/*" onchange="handleUpload(this, 0)">
+                </div>
+                <div class="upload-box" onclick="document.getElementById('cam2').click()">
+                    <i class="fas fa-video"></i>
+                    <p>机位 2</p>
+                    <input type="file" id="cam2" accept="video/*" onchange="handleUpload(this, 1)">
+                </div>
+                <div class="upload-box" onclick="document.getElementById('cam3').click()">
+                    <i class="fas fa-video"></i>
+                    <p>机位 3</p>
+                    <input type="file" id="cam3" accept="video/*" onchange="handleUpload(this, 2)">
+                </div>
+            </div>
+        </div>
+
+        <!-- Step 2: 转录 -->
+        <div class="card">
+            <h2>Step 2: Whisper 转录（机位1音频）</h2>
+            <button class="btn" id="transcribeBtn" onclick="transcribe()" disabled>开始转录</button>
+            <div class="progress" id="transcribeProgress" style="display: none;">
+                <div class="progress-fill" id="transcribeProgressFill"></div>
+            </div>
+            <div class="status" id="transcribeStatus" style="display: none;"></div>
+        </div>
+
+        <!-- Step 3: 字幕列表 -->
+        <div class="card" id="subtitleCard" style="display: none;">
+            <h2>Step 3: 字幕列表（共 <span id="subtitleCount">0</span> 条）</h2>
+            <div class="subtitle-list" id="subtitleList"></div>
+        </div>
+
+        <!-- Step 4: 输入台词 -->
+        <div class="card" id="quotesCard" style="display: none;">
+            <h2>Step 4: 输入要拼接的台词（每行一句，按顺序）</h2>
+            <textarea id="quotesInput" placeholder="例如：
+大家好，欢迎来到本次会议
+今天我们要讨论产品设计方向
+首先请产品经理介绍一下"></textarea>
+            <button class="btn btn-secondary" onclick="searchQuotes()">搜索台词位置</button>
+            <div class="status" id="searchStatus" style="display: none;"></div>
+        </div>
+
+        <!-- Step 5: 搜索结果 -->
+        <div class="card" id="resultsCard" style="display: none;">
+            <h2>Step 5: 搜索结果</h2>
+            <table class="results-table">
+                <thead>
+                    <tr>
+                        <th>#</th>
+                        <th>台词</th>
+                        <th>状态</th>
+                        <th>时间点</th>
+                        <th>匹配方式</th>
+                    </tr>
+                </thead>
+                <tbody id="resultsBody"></tbody>
+            </table>
+        </div>
+
+        <!-- Step 6: 拼接 -->
+        <div class="card" id="concatCard" style="display: none;">
+            <h2>Step 6: 视频拼接</h2>
+            <button class="btn" onclick="concatVideo()">开始拼接（多画面1x3）</button>
+            <div class="progress" id="concatProgress" style="display: none;">
+                <div class="progress-fill" id="concatProgressFill"></div>
+            </div>
+            <div class="status" id="concatStatus" style="display: none;"></div>
+        </div>
+
+        <!-- Step 7: 导出 -->
+        <div class="card" id="exportCard" style="display: none;">
+            <h2>Step 7: 导出</h2>
+            <button class="btn" onclick="exportFCPXML()">下载 FCPXML 工程文件</button>
+            <button class="btn btn-secondary" onclick="downloadVideo()" style="margin-top: 8px;">下载拼接视频</button>
+        </div>
+    </div>
+
+    <script>
+        // 使用相对路径避免跨域问题
+        const API_BASE = '/api';
+
+        let state = {
+            projectId: null,
+            videoPaths: [],
+            subtitles: [],
+            searchResults: []
+        };
+
+        // 初始化
+        async function init() {
+            try {
+                const res = await fetch(`${API_BASE}/health`);
+                const data = await res.json();
+                document.getElementById('apiStatus').textContent = `API已连接 - FFmpeg: ${data.ffmpeg ? '✓' : '✗'}`;
+                document.getElementById('apiStatus').className = 'api-status connected';
+            } catch (e) {
+                document.getElementById('apiStatus').textContent = 'API未连接，请先启动后端';
+                document.getElementById('apiStatus').className = 'api-status error';
+            }
+        }
+
+        // 上传视频
+        async function handleUpload(input, camIndex) {
+            const file = input.files[0];
+            if (!file) return;
+
+            const formData = new FormData();
+            formData.append('videos', file);
+
+            try {
+                const res = await fetch(`${API_BASE}/multicam/upload`, {
+                    method: 'POST',
+                    body: formData
+                });
+                const data = await res.json();
+
+                if (data.success) {
+                    state.projectId = data.project_id;
+                    state.videoPaths = data.video_paths;
+
+                    // 更新UI
+                    const boxes = document.querySelectorAll('.upload-box');
+                    boxes[camIndex].classList.add('uploaded');
+
+                    // 检查是否所有视频都上传了
+                    checkTranscribeBtn();
+                }
+            } catch (e) {
+                showStatus('transcribeStatus', '上传失败: ' + e.message, 'error');
+            }
+        }
+
+        function checkTranscribeBtn() {
+            const hasVideos = state.videoPaths.length > 0;
+            document.getElementById('transcribeBtn').disabled = !hasVideos;
+        }
+
+        // 转录
+        async function transcribe() {
+            if (!state.videoPaths[0]) {
+                alert('请先上传机位1视频');
+                return;
+            }
+
+            const btn = document.getElementById('transcribeBtn');
+            const progress = document.getElementById('transcribeProgress');
+            const status = document.getElementById('transcribeStatus');
+
+            btn.disabled = true;
+            progress.style.display = 'block';
+            status.style.display = 'block';
+            status.textContent = '正在转录，请稍候...';
+            status.className = 'status info';
+
+            // 模拟进度
+            let prog = 0;
+            const interval = setInterval(() => {
+                prog = Math.min(prog + 5, 90);
+                document.getElementById('transcribeProgressFill').style.width = prog + '%';
+            }, 500);
+
+            try {
+                const res = await fetch(`${API_BASE}/multicam/transcribe`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        video_path: state.videoPaths[0],
+                        project_id: state.projectId
+                    })
+                });
+                const data = await res.json();
+
+                clearInterval(interval);
+                document.getElementById('transcribeProgressFill').style.width = '100%';
+
+                if (data.success) {
+                    state.subtitles = data.subtitles;
+                    showSubtitles();
+                    status.textContent = `转录完成！共 ${data.subtitle_count} 条字幕`;
+                    status.className = 'status success';
+                } else {
+                    status.textContent = '转录失败: ' + data.error;
+                    status.className = 'status error';
+                }
+            } catch (e) {
+                clearInterval(interval);
+                status.textContent = '转录失败: ' + e.message;
+                status.className = 'status error';
+            }
+
+            btn.disabled = false;
+        }
+
+        function showSubtitles() {
+            document.getElementById('subtitleCard').style.display = 'block';
+            document.getElementById('quotesCard').style.display = 'block';
+            document.getElementById('subtitleCount').textContent = state.subtitles.length;
+
+            const list = document.getElementById('subtitleList');
+            list.innerHTML = state.subtitles.map((s, i) => `
+                <div class="subtitle-item">
+                    <span class="time">${formatTime(s.start)}</span>
+                    <span class="text">${s.text}</span>
+                </div>
+            `).join('');
+        }
+
+        function formatTime(seconds) {
+            const m = Math.floor(seconds / 60);
+            const s = Math.floor(seconds % 60);
+            return `${m}:${s.toString().padStart(2, '0')}`;
+        }
+
+        // 搜索台词
+        async function searchQuotes() {
+            const quotesText = document.getElementById('quotesInput').value.trim();
+            if (!quotesText) {
+                alert('请输入台词');
+                return;
+            }
+
+            const quotes = quotesText.split('\n').filter(q => q.trim());
+            if (quotes.length === 0) {
+                alert('请输入有效的台词');
+                return;
+            }
+
+            const status = document.getElementById('searchStatus');
+            status.style.display = 'block';
+            status.textContent = '正在搜索...';
+            status.className = 'status info';
+
+            console.log('[DEBUG] Sending search request...');
+            console.log('[DEBUG] API_BASE:', API_BASE);
+            console.log('[DEBUG] Subtitles count:', state.subtitles.length);
+
+            try {
+                const res = await fetch(`${API_BASE}/multicam/search`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        quotes: quotes,
+                        subtitles: state.subtitles
+                    })
+                });
+
+                console.log('[DEBUG] Response status:', res.status);
+
+                if (!res.ok) {
+                    throw new Error(`HTTP ${res.status}: ${res.statusText}`);
+                }
+
+                const data = await res.json();
+                console.log('[DEBUG] Response data:', data);
+
+                if (data.success) {
+                    state.searchResults = data.results;
+                    showResults(data.results);
+                    status.textContent = `搜索完成！找到 ${data.found}/${data.total} 条`;
+                    status.className = 'status success';
+
+                    // 检查是否可以拼接
+                    const canConcat = data.results.every(r => r.found && r.start !== null);
+                    if (canConcat) {
+                        document.getElementById('concatCard').style.display = 'block';
+                    }
+                } else {
+                    status.textContent = '搜索失败: ' + (data.error || 'Unknown error');
+                    status.className = 'status error';
+                }
+            } catch (e) {
+                console.error('[ERROR]', e);
+                status.textContent = '搜索失败: ' + e.message;
+                status.className = 'status error';
+            }
+        }
+
+        function showResults(results) {
+            document.getElementById('resultsCard').style.display = 'block';
+
+            const tbody = document.getElementById('resultsBody');
+            tbody.innerHTML = results.map(r => `
+                <tr>
+                    <td>${r.index}</td>
+                    <td>${r.quote.substring(0, 30)}${r.quote.length > 30 ? '...' : ''}</td>
+                    <td class="${r.found ? 'found' : 'not-found'}">${r.found ? '✓' : '✗'}</td>
+                    <td>${r.start !== null ? formatTime(r.start) : '-'}</td>
+                    <td>${r.strategy || '-'}</td>
+                </tr>
+            `).join('');
+        }
+
+        // 拼接视频
+        async function concatVideo() {
+            if (state.searchResults.length === 0) {
+                alert('请先搜索台词');
+                return;
+            }
+
+            const btn = event.target;
+            const progress = document.getElementById('concatProgress');
+            const status = document.getElementById('concatStatus');
+
+            btn.disabled = true;
+            progress.style.display = 'block';
+            status.style.display = 'block';
+            status.textContent = '正在拼接视频...';
+            status.className = 'status info';
+
+            let prog = 0;
+            const interval = setInterval(() => {
+                prog = Math.min(prog + 3, 95);
+                document.getElementById('concatProgressFill').style.width = prog + '%';
+            }, 300);
+
+            try {
+                const segmentTimes = state.searchResults
+                    .filter(r => r.found)
+                    .map(r => [r.start, r.end]);
+
+                const res = await fetch(`${API_BASE}/multicam/concat`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        video_paths: state.videoPaths,
+                        segment_times: segmentTimes,
+                        project_id: state.projectId
+                    })
+                });
+                const data = await res.json();
+
+                clearInterval(interval);
+                document.getElementById('concatProgressFill').style.width = '100%';
+
+                if (data.success) {
+                    state.outputPath = data.output_path;
+                    status.textContent = '拼接完成！';
+                    status.className = 'status success';
+                    document.getElementById('exportCard').style.display = 'block';
+                } else {
+                    status.textContent = '拼接失败: ' + data.error;
+                    status.className = 'status error';
+                }
+            } catch (e) {
+                clearInterval(interval);
+                status.textContent = '拼接失败: ' + e.message;
+                status.className = 'status error';
+            }
+
+            btn.disabled = false;
+        }
+
+        // 导出FCPXML
+        async function exportFCPXML() {
+            if (state.searchResults.length === 0) return;
+
+            try {
+                const segmentTimes = state.searchResults
+                    .filter(r => r.found)
+                    .map(r => [r.start, r.end]);
+
+                const res = await fetch(`${API_BASE}/multicam/export-fcpxml`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        video_paths: state.videoPaths,
+                        segment_times: segmentTimes,
+                        project_name: `multicam_${state.projectId}`
+                    })
+                });
+                const data = await res.json();
+
+                if (data.success) {
+                    // 下载XML
+                    window.open(`${API_BASE}/../${data.xml_path.replace(/\\/g, '/')}`, '_blank');
+                }
+            } catch (e) {
+                alert('导出失败: ' + e.message);
+            }
+        }
+
+        function downloadVideo() {
+            if (state.outputPath) {
+                window.open(`${API_BASE}/../${state.outputPath.replace(/\\/g, '/')}`, '_blank');
+            }
+        }
+
+        init();
+    </script>
+</body>
+</html>

@@ -1,0 +1,34 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.eggs/
+
+# Environment
+.env
+venv/
+.venv/
+
+# IDE
+.vscode/
+.idea/
+
+# Project specific - large/generated files
+uploads/
+outputs/
+*.mp4
+*.mov
+*.avi
+*.mkv
+*.srt
+*.json
+*.fcpxml
+*.xml
+
+# System
+.DS_Store
+Thumbs.db
+*.log
+
+# Sisyphus (build tool cache)
+.sisyphus/

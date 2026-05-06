@@ -1,0 +1,775 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>视频字幕拼接 - 设计预览</title>
+    <link href="https://cdn.jsdelivr.net/npm/remixicon@4.2.0/fonts/remixicon.css" rel="stylesheet">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        :root {
+            --bg-primary: #f8fafc;
+            --bg-secondary: #ffffff;
+            --text-primary: #1e293b;
+            --text-secondary: #64748b;
+            --accent: #3b82f6;
+            --accent-light: #eff6ff;
+            --success: #22c55e;
+            --warning: #f59e0b;
+            --border: #e2e8f0;
+            --shadow: 0 1px 3px rgba(0,0,0,0.1);
+            --shadow-lg: 0 4px 12px rgba(0,0,0,0.1);
+            --radius: 12px;
+        }
+
+        body {
+            font-family: 'Segoe UI', -apple-system, sans-serif;
+            background: var(--bg-primary);
+            color: var(--text-primary);
+            min-height: 100vh;
+            display: flex;
+        }
+
+        /* 左侧导航 */
+        .sidebar {
+            width: 240px;
+            background: var(--bg-secondary);
+            border-right: 1px solid var(--border);
+            padding: 24px 16px;
+            display: flex;
+            flex-direction: column;
+            position: fixed;
+            height: 100vh;
+        }
+
+        .logo {
+            font-size: 1.25rem;
+            font-weight: 700;
+            color: var(--accent);
+            padding: 0 12px;
+            margin-bottom: 32px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .logo i { font-size: 1.5rem; }
+
+        .nav-item {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 12px 16px;
+            border-radius: 8px;
+            color: var(--text-secondary);
+            cursor: pointer;
+            transition: all 0.2s;
+            margin-bottom: 4px;
+        }
+
+        .nav-item:hover {
+            background: var(--bg-primary);
+            color: var(--text-primary);
+        }
+
+        .nav-item.active {
+            background: var(--accent-light);
+            color: var(--accent);
+            font-weight: 500;
+        }
+
+        .nav-item i { font-size: 1.25rem; }
+
+        .nav-divider {
+            height: 1px;
+            background: var(--border);
+            margin: 20px 0;
+        }
+
+        .stats-box {
+            margin-top: auto;
+            background: var(--accent-light);
+            border-radius: var(--radius);
+            padding: 16px;
+        }
+
+        .stats-title {
+            font-size: 0.75rem;
+            color: var(--text-secondary);
+            margin-bottom: 8px;
+        }
+
+        .stats-row {
+            display: flex;
+            justify-content: space-between;
+            font-size: 0.875rem;
+        }
+
+        .stats-value {
+            font-weight: 600;
+            color: var(--accent);
+        }
+
+        /* 主内容区 */
+        .main {
+            flex: 1;
+            margin-left: 240px;
+            padding: 32px 40px;
+        }
+
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 32px;
+        }
+
+        .header h1 {
+            font-size: 1.75rem;
+            font-weight: 600;
+        }
+
+        .header-actions {
+            display: flex;
+            gap: 12px;
+        }
+
+        .btn {
+            padding: 10px 20px;
+            border-radius: 8px;
+            border: none;
+            font-weight: 500;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            transition: all 0.2s;
+        }
+
+        .btn-primary {
+            background: var(--accent);
+            color: white;
+        }
+
+        .btn-primary:hover {
+            background: #2563eb;
+            box-shadow: var(--shadow-lg);
+        }
+
+        .btn-secondary {
+            background: var(--bg-secondary);
+            color: var(--text-primary);
+            border: 1px solid var(--border);
+        }
+
+        .btn-secondary:hover {
+            background: var(--bg-primary);
+        }
+
+        /* 模式选择卡片 */
+        .mode-cards {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 24px;
+            margin-bottom: 32px;
+        }
+
+        .mode-card {
+            background: var(--bg-secondary);
+            border-radius: var(--radius);
+            padding: 28px;
+            border: 2px solid var(--border);
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .mode-card:hover {
+            border-color: var(--accent);
+            box-shadow: var(--shadow-lg);
+        }
+
+        .mode-card.selected {
+            border-color: var(--accent);
+            background: var(--accent-light);
+        }
+
+        .mode-icon {
+            width: 56px;
+            height: 56px;
+            border-radius: 12px;
+            background: var(--accent-light);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-bottom: 16px;
+            font-size: 1.75rem;
+            color: var(--accent);
+        }
+
+        .mode-card h3 {
+            font-size: 1.125rem;
+            margin-bottom: 8px;
+        }
+
+        .mode-card p {
+            font-size: 0.875rem;
+            color: var(--text-secondary);
+            line-height: 1.5;
+        }
+
+        .mode-tag {
+            display: inline-block;
+            padding: 4px 10px;
+            border-radius: 20px;
+            font-size: 0.75rem;
+            font-weight: 500;
+            margin-top: 12px;
+        }
+
+        .mode-tag.short { background: #dcfce7; color: #16a34a; }
+        .mode-tag.long { background: #fef3c7; color: #d97706; }
+
+        /* 内容区卡片 */
+        .card {
+            background: var(--bg-secondary);
+            border-radius: var(--radius);
+            padding: 24px;
+            box-shadow: var(--shadow);
+            margin-bottom: 24px;
+        }
+
+        .card-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+
+        .card-title {
+            font-size: 1rem;
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .card-title i { color: var(--accent); }
+
+        /* 上传区域 */
+        .upload-zone {
+            border: 2px dashed var(--border);
+            border-radius: var(--radius);
+            padding: 48px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.2s;
+            background: var(--bg-primary);
+        }
+
+        .upload-zone:hover, .upload-zone.dragover {
+            border-color: var(--accent);
+            background: var(--accent-light);
+        }
+
+        .upload-zone i {
+            font-size: 3rem;
+            color: var(--text-secondary);
+            margin-bottom: 16px;
+        }
+
+        .upload-zone h4 {
+            font-size: 1rem;
+            margin-bottom: 8px;
+        }
+
+        .upload-zone p {
+            font-size: 0.875rem;
+            color: var(--text-secondary);
+        }
+
+        /* 多机位上传网格 */
+        .camera-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 20px;
+        }
+
+        .camera-box {
+            border: 2px dashed var(--border);
+            border-radius: var(--radius);
+            padding: 32px 20px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .camera-box:hover { border-color: var(--accent); }
+        .camera-box.uploaded { border-color: var(--success); background: #f0fdf4; }
+
+        .camera-box i {
+            font-size: 2rem;
+            color: var(--text-secondary);
+            margin-bottom: 8px;
+        }
+
+        .camera-box p { font-size: 0.875rem; color: var(--text-secondary); }
+        .camera-box small { font-size: 0.75rem; color: var(--text-secondary); }
+
+        /* 字幕时间轴 */
+        .timeline {
+            position: relative;
+            padding-left: 40px;
+        }
+
+        .timeline::before {
+            content: '';
+            position: absolute;
+            left: 15px;
+            top: 0;
+            bottom: 0;
+            width: 2px;
+            background: var(--border);
+        }
+
+        .timeline-item {
+            position: relative;
+            background: var(--bg-primary);
+            border-radius: 8px;
+            padding: 16px;
+            margin-bottom: 12px;
+            cursor: grab;
+            transition: all 0.2s;
+            border: 1px solid transparent;
+        }
+
+        .timeline-item:hover {
+            border-color: var(--accent);
+            box-shadow: var(--shadow);
+        }
+
+        .timeline-item.dragging {
+            opacity: 0.5;
+            border-color: var(--accent);
+        }
+
+        .timeline-item::before {
+            content: '';
+            position: absolute;
+            left: -33px;
+            top: 20px;
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            background: var(--accent);
+            border: 3px solid var(--bg-secondary);
+        }
+
+        .timeline-time {
+            font-size: 0.75rem;
+            color: var(--accent);
+            font-weight: 500;
+            margin-bottom: 6px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .timeline-text {
+            font-size: 0.9rem;
+            line-height: 1.5;
+        }
+
+        .timeline-handle {
+            position: absolute;
+            right: 16px;
+            top: 50%;
+            transform: translateY(-50%);
+            color: var(--text-secondary);
+            cursor: grab;
+        }
+
+        /* 台词输入区 */
+        .quote-input-group {
+            display: flex;
+            gap: 12px;
+            margin-bottom: 16px;
+        }
+
+        .quote-input {
+            flex: 1;
+            padding: 12px 16px;
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            font-size: 0.9rem;
+            outline: none;
+            transition: border-color 0.2s;
+        }
+
+        .quote-input:focus {
+            border-color: var(--accent);
+        }
+
+        /* 已选台词列表 */
+        .selected-quotes {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+        }
+
+        .quote-chip {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 8px 14px;
+            background: var(--accent-light);
+            border-radius: 20px;
+            font-size: 0.875rem;
+            color: var(--accent);
+            border: 1px solid var(--accent);
+        }
+
+        .quote-chip .num {
+            background: var(--accent);
+            color: white;
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 0.7rem;
+            font-weight: 600;
+        }
+
+        .quote-chip .remove {
+            cursor: pointer;
+            opacity: 0.7;
+        }
+
+        .quote-chip .remove:hover { opacity: 1; }
+
+        /* 进度条 */
+        .progress-bar {
+            height: 8px;
+            background: var(--border);
+            border-radius: 4px;
+            overflow: hidden;
+            margin-top: 12px;
+        }
+
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, var(--accent), var(--success));
+            transition: width 0.3s;
+        }
+
+        /* 状态徽章 */
+        .badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            padding: 4px 10px;
+            border-radius: 20px;
+            font-size: 0.75rem;
+            font-weight: 500;
+        }
+
+        .badge-success { background: #dcfce7; color: #16a34a; }
+        .badge-warning { background: #fef3c7; color: #d97706; }
+        .badge-error { background: #fee2e2; color: #dc2626; }
+
+        /* 视频预览 */
+        .video-preview {
+            background: #000;
+            border-radius: var(--radius);
+            aspect-ratio: 16/9;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-size: 0.9rem;
+        }
+
+        /* 2x2网格布局 */
+        .grid-2x2 {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+        }
+
+        /* 标签页 */
+        .tabs {
+            display: flex;
+            gap: 4px;
+            background: var(--bg-primary);
+            padding: 4px;
+            border-radius: 8px;
+            width: fit-content;
+        }
+
+        .tab {
+            padding: 8px 20px;
+            border-radius: 6px;
+            font-size: 0.875rem;
+            cursor: pointer;
+            color: var(--text-secondary);
+            transition: all 0.2s;
+        }
+
+        .tab:hover { color: var(--text-primary); }
+        .tab.active {
+            background: var(--bg-secondary);
+            color: var(--text-primary);
+            font-weight: 500;
+            box-shadow: var(--shadow);
+        }
+    </style>
+</head>
+<body>
+    <!-- 左侧导航 -->
+    <div class="sidebar">
+        <div class="logo">
+            <i class="ri-video-on-line"></i>
+            <span>字幕拼接</span>
+        </div>
+
+        <div class="nav-item active">
+            <i class="ri-home-4-line"></i>
+            <span>首页</span>
+        </div>
+        <div class="nav-item">
+            <i class="ri-file-text-line"></i>
+            <span>字幕提取</span>
+        </div>
+        <div class="nav-item">
+            <i class="ri-scissors-line"></i>
+            <span>视频拼接</span>
+        </div>
+        <div class="nav-item">
+            <i class="ri-history-line"></i>
+            <span>历史记录</span>
+        </div>
+
+        <div class="nav-divider"></div>
+
+        <div class="nav-item">
+            <i class="ri-settings-3-line"></i>
+            <span>设置</span>
+        </div>
+
+        <div class="stats-box">
+            <div class="stats-title">处理统计</div>
+            <div class="stats-row">
+                <span>今日处理</span>
+                <span class="stats-value">0</span>
+            </div>
+            <div class="stats-row">
+                <span>累计处理</span>
+                <span class="stats-value">3</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- 主内容 -->
+    <div class="main">
+        <div class="header">
+            <h1>视频字幕拼接</h1>
+            <div class="header-actions">
+                <button class="btn btn-secondary">
+                    <i class="ri-question-line"></i>
+                    帮助
+                </button>
+                <button class="btn btn-primary">
+                    <i class="ri-add-line"></i>
+                    新建项目
+                </button>
+            </div>
+        </div>
+
+        <!-- 模式选择 -->
+        <div class="mode-cards">
+            <div class="mode-card selected">
+                <div class="mode-icon">
+                    <i class="ri-film-line"></i>
+                </div>
+                <h3>短视频</h3>
+                <p>单个视频文件，几分钟内。直接上传，选择台词顺序，生成字幕并拼接。</p>
+                <span class="mode-tag short">快速简单</span>
+            </div>
+            <div class="mode-card">
+                <div class="mode-icon" style="background: #fef3c7;">
+                    <i class="ri-vidicon-line" style="color: #d97706;"></i>
+                </div>
+                <h3>长视频多机位</h3>
+                <p>多角度拍摄，时机较长。分别上传多个机位视频，自动对齐时间轴。</p>
+                <span class="mode-tag long">多机位同步</span>
+            </div>
+        </div>
+
+        <!-- 短视频模式 -->
+        <div class="card">
+            <div class="card-header">
+                <div class="card-title">
+                    <i class="ri-upload-cloud-line"></i>
+                    上传视频
+                </div>
+                <div class="tabs">
+                    <div class="tab active">上传视频</div>
+                    <div class="tab">从历史选择</div>
+                </div>
+            </div>
+            <div class="upload-zone">
+                <i class="ri-cloud-upload-line"></i>
+                <h4>拖拽视频到此处，或点击上传</h4>
+                <p>支持 MP4、MOV、AVI、MKV 格式</p>
+            </div>
+        </div>
+
+        <!-- 字幕时间轴 -->
+        <div class="card">
+            <div class="card-header">
+                <div class="card-title">
+                    <i class="ri-time-line"></i>
+                    字幕时间轴
+                </div>
+                <span class="badge badge-success">
+                    <i class="ri-check-line"></i>
+                    已转录 243 条
+                </span>
+            </div>
+            <div class="timeline">
+                <div class="timeline-item">
+                    <div class="timeline-time">
+                        <i class="ri-play-circle-line"></i>
+                        00:05.2 - 00:08.6
+                    </div>
+                    <div class="timeline-text">大家好，欢迎来到今天的节目</div>
+                    <div class="timeline-handle">
+                        <i class="ri-drag-move-line"></i>
+                    </div>
+                </div>
+                <div class="timeline-item">
+                    <div class="timeline-time">
+                        <i class="ri-play-circle-line"></i>
+                        00:09.1 - 00:12.4
+                    </div>
+                    <div class="timeline-text">今天我们要讨论的是产品设计方向</div>
+                    <div class="timeline-handle">
+                        <i class="ri-drag-move-line"></i>
+                    </div>
+                </div>
+                <div class="timeline-item">
+                    <div class="timeline-time">
+                        <i class="ri-play-circle-line"></i>
+                        00:13.0 - 00:17.5
+                    </div>
+                    <div class="timeline-text">首先请产品经理来介绍一下我们的目标</div>
+                    <div class="timeline-handle">
+                        <i class="ri-drag-move-line"></i>
+                    </div>
+                </div>
+                <div class="timeline-item">
+                    <div class="timeline-time">
+                        <i class="ri-play-circle-line"></i>
+                        00:18.2 - 00:22.8
+                    </div>
+                    <div class="timeline-text">我们的目标是在第三季度完成这个版本的发布</div>
+                    <div class="timeline-handle">
+                        <i class="ri-drag-move-line"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 台词输入 -->
+        <div class="card">
+            <div class="card-header">
+                <div class="card-title">
+                    <i class="ri-text"></i>
+                    输入台词顺序
+                </div>
+            </div>
+            <div class="quote-input-group">
+                <input type="text" class="quote-input" placeholder="输入台词，回车添加...">
+                <button class="btn btn-primary">
+                    <i class="ri-add-line"></i>
+                    添加
+                </button>
+            </div>
+            <p style="font-size: 0.8rem; color: var(--text-secondary); margin-bottom: 16px;">
+                输入想要保留的台词顺序，系统会自动匹配对应的视频片段
+            </p>
+            <div class="selected-quotes">
+                <div class="quote-chip">
+                    <span class="num">1</span>
+                    大家好，欢迎来到今天的节目
+                    <span class="remove"><i class="ri-close-line"></i></span>
+                </div>
+                <div class="quote-chip">
+                    <span class="num">2</span>
+                    今天我们要讨论产品设计方向
+                    <span class="remove"><i class="ri-close-line"></i></span>
+                </div>
+                <div class="quote-chip">
+                    <span class="num">3</span>
+                    我们的目标是在第三季度完成
+                    <span class="remove"><i class="ri-close-line"></i></span>
+                </div>
+            </div>
+        </div>
+
+        <!-- 预览和导出 -->
+        <div class="grid-2x2">
+            <div class="card">
+                <div class="card-header">
+                    <div class="card-title">
+                        <i class="ri-play-line"></i>
+                        视频预览
+                    </div>
+                </div>
+                <div class="video-preview">
+                    <i class="ri-film-line" style="font-size: 3rem; opacity: 0.5;"></i>
+                </div>
+                <div class="progress-bar">
+                    <div class="progress-fill" style="width: 35%;"></div>
+                </div>
+            </div>
+            <div class="card">
+                <div class="card-header">
+                    <div class="card-title">
+                        <i class="ri-file-list-3-line"></i>
+                        导出设置
+                    </div>
+                </div>
+                <div style="display: flex; flex-direction: column; gap: 12px;">
+                    <div style="display: flex; justify-content: space-between; padding: 12px; background: var(--bg-primary); border-radius: 8px;">
+                        <span>输出格式</span>
+                        <span style="font-weight: 500;">FCPXML</span>
+                    </div>
+                    <div style="display: flex; justify-content: space-between; padding: 12px; background: var(--bg-primary); border-radius: 8px;">
+                        <span>视频画质</span>
+                        <span style="font-weight: 500;">1080p</span>
+                    </div>
+                    <div style="display: flex; justify-content: space-between; padding: 12px; background: var(--bg-primary); border-radius: 8px;">
+                        <span>片段数量</span>
+                        <span style="font-weight: 500;">3 个</span>
+                    </div>
+                    <button class="btn btn-primary" style="width: 100%; justify-content: center; margin-top: 8px;">
+                        <i class="ri-download-line"></i>
+                        导出 FCPXML
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // 拖拽排序功能演示
+        document.querySelectorAll('.timeline-item').forEach(item => {
+            item.addEventListener('dragstart', () => item.classList.add('dragging'));
+            item.addEventListener('dragend', () => item.classList.remove('dragging'));
+        });
+    </script>
+</body>
+</html>

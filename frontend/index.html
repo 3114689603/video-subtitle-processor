@@ -1,0 +1,2945 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>视频字幕拼接</title>
+    <link href="https://cdn.jsdelivr.net/npm/remixicon@4.2.0/fonts/remixicon.css" rel="stylesheet">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        :root {
+            --bg-primary: #f8fafc;
+            --bg-secondary: #ffffff;
+            --text-primary: #1e293b;
+            --text-secondary: #64748b;
+            --accent: #3b82f6;
+            --accent-light: #eff6ff;
+            --success: #22c55e;
+            --warning: #f59e0b;
+            --error: #ef4444;
+            --border: #e2e8f0;
+            --shadow: 0 1px 3px rgba(0,0,0,0.1);
+            --shadow-lg: 0 4px 12px rgba(0,0,0,0.1);
+            --radius: 12px;
+        }
+
+        body {
+            font-family: 'Segoe UI', -apple-system, sans-serif;
+            background: var(--bg-primary);
+            color: var(--text-primary);
+            min-height: 100vh;
+            display: flex;
+        }
+
+        /* 左侧导航 */
+        .sidebar {
+            width: 240px;
+            background: var(--bg-secondary);
+            border-right: 1px solid var(--border);
+            padding: 24px 16px;
+            display: flex;
+            flex-direction: column;
+            position: fixed;
+            height: 100vh;
+        }
+
+        .logo {
+            font-size: 1.25rem;
+            font-weight: 700;
+            color: var(--accent);
+            padding: 0 12px;
+            margin-bottom: 32px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .logo i { font-size: 1.5rem; }
+
+        .nav-item {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 12px 16px;
+            border-radius: 8px;
+            color: var(--text-secondary);
+            cursor: pointer;
+            transition: all 0.2s;
+            margin-bottom: 4px;
+        }
+
+        .nav-item:hover {
+            background: var(--bg-primary);
+            color: var(--text-primary);
+        }
+
+        .nav-item.active {
+            background: var(--accent-light);
+            color: var(--accent);
+            font-weight: 500;
+        }
+
+        .nav-item i { font-size: 1.25rem; }
+
+        .nav-divider {
+            height: 1px;
+            background: var(--border);
+            margin: 20px 0;
+        }
+
+        .stats-box {
+            margin-top: auto;
+            background: var(--accent-light);
+            border-radius: var(--radius);
+            padding: 16px;
+        }
+
+        .stats-title {
+            font-size: 0.75rem;
+            color: var(--text-secondary);
+            margin-bottom: 8px;
+        }
+
+        .stats-row {
+            display: flex;
+            justify-content: space-between;
+            font-size: 0.875rem;
+        }
+
+        .stats-value {
+            font-weight: 600;
+            color: var(--accent);
+        }
+
+        /* 主内容区 */
+        .main {
+            flex: 1;
+            margin-left: 240px;
+            padding: 32px 40px;
+        }
+
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 32px;
+        }
+
+        .header h1 {
+            font-size: 1.75rem;
+            font-weight: 600;
+        }
+
+        .header-actions {
+            display: flex;
+            gap: 12px;
+        }
+
+        .btn {
+            padding: 10px 20px;
+            border-radius: 8px;
+            border: none;
+            font-weight: 500;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            transition: all 0.2s;
+        }
+
+        .btn-primary {
+            background: var(--accent);
+            color: white;
+        }
+
+        .btn-primary:hover {
+            background: #2563eb;
+            box-shadow: var(--shadow-lg);
+        }
+
+        .btn-primary:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .btn-secondary {
+            background: var(--bg-secondary);
+            color: var(--text-primary);
+            border: 1px solid var(--border);
+        }
+
+        .btn-secondary:hover {
+            background: var(--bg-primary);
+        }
+
+        /* 模式选择卡片 */
+        .mode-cards {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 24px;
+            margin-bottom: 32px;
+        }
+
+        .mode-card {
+            background: var(--bg-secondary);
+            border-radius: var(--radius);
+            padding: 28px;
+            border: 2px solid var(--border);
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .mode-card:hover {
+            border-color: var(--accent);
+            box-shadow: var(--shadow-lg);
+        }
+
+        .mode-card.selected {
+            border-color: var(--accent);
+            background: var(--accent-light);
+        }
+
+        .mode-icon {
+            width: 56px;
+            height: 56px;
+            border-radius: 12px;
+            background: var(--accent-light);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-bottom: 16px;
+            font-size: 1.75rem;
+            color: var(--accent);
+        }
+
+        .mode-card h3 {
+            font-size: 1.125rem;
+            margin-bottom: 8px;
+        }
+
+        .mode-card p {
+            font-size: 0.875rem;
+            color: var(--text-secondary);
+            line-height: 1.5;
+        }
+
+        .mode-tag {
+            display: inline-block;
+            padding: 4px 10px;
+            border-radius: 20px;
+            font-size: 0.75rem;
+            font-weight: 500;
+            margin-top: 12px;
+        }
+
+        .mode-tag.short { background: #dcfce7; color: #16a34a; }
+        .mode-tag.long { background: #fef3c7; color: #d97706; }
+
+        /* 内容区卡片 */
+        .card {
+            background: var(--bg-secondary);
+            border-radius: var(--radius);
+            padding: 24px;
+            box-shadow: var(--shadow);
+            margin-bottom: 24px;
+        }
+
+        .card-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+
+        .card-title {
+            font-size: 1rem;
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .card-title i { color: var(--accent); }
+
+        /* 上传区域 */
+        .upload-zone {
+            border: 2px dashed var(--border);
+            border-radius: var(--radius);
+            padding: 48px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.2s;
+            background: var(--bg-primary);
+        }
+
+        .upload-zone:hover, .upload-zone.dragover {
+            border-color: var(--accent);
+            background: var(--accent-light);
+        }
+
+        .upload-zone i {
+            font-size: 3rem;
+            color: var(--text-secondary);
+            margin-bottom: 16px;
+        }
+
+        .upload-zone h4 {
+            font-size: 1rem;
+            margin-bottom: 8px;
+        }
+
+        .upload-zone p {
+            font-size: 0.875rem;
+            color: var(--text-secondary);
+        }
+
+        /* 多机位上传网格 */
+        .camera-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 20px;
+        }
+
+        .camera-box {
+            border: 2px dashed var(--border);
+            border-radius: var(--radius);
+            padding: 32px 20px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .camera-box:hover { border-color: var(--accent); }
+        .camera-box.uploaded { border-color: var(--success); background: #f0fdf4; }
+
+        .camera-box i {
+            font-size: 2rem;
+            color: var(--text-secondary);
+            margin-bottom: 8px;
+        }
+
+        .camera-box p { font-size: 0.875rem; color: var(--text-secondary); }
+        .camera-box small { font-size: 0.75rem; color: var(--text-secondary); }
+
+        .camera-box .filename {
+            font-size: 0.8rem;
+            color: var(--success);
+            margin-top: 8px;
+            word-break: break-all;
+        }
+
+        /* 字幕时间轴 */
+        .timeline {
+            position: relative;
+            padding-left: 40px;
+            max-height: 400px;
+            overflow-y: auto;
+        }
+
+        .timeline::before {
+            content: '';
+            position: absolute;
+            left: 15px;
+            top: 0;
+            bottom: 0;
+            width: 2px;
+            background: var(--border);
+        }
+
+        .timeline-item {
+            position: relative;
+            background: var(--bg-primary);
+            border-radius: 8px;
+            padding: 16px;
+            margin-bottom: 12px;
+            cursor: grab;
+            transition: all 0.2s;
+            border: 1px solid transparent;
+        }
+
+        .timeline-item:hover {
+            border-color: var(--accent);
+            box-shadow: var(--shadow);
+        }
+
+        .timeline-item.dragging {
+            opacity: 0.5;
+            border-color: var(--accent);
+        }
+
+        .timeline-item::before {
+            content: '';
+            position: absolute;
+            left: -33px;
+            top: 20px;
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            background: var(--accent);
+            border: 3px solid var(--bg-secondary);
+        }
+
+        .timeline-item.selected::before {
+            background: var(--success);
+        }
+
+        .timeline-time {
+            font-size: 0.75rem;
+            color: var(--accent);
+            font-weight: 500;
+            margin-bottom: 6px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .timeline-text {
+            font-size: 0.9rem;
+            line-height: 1.5;
+        }
+
+        .timeline-handle {
+            position: absolute;
+            right: 16px;
+            top: 50%;
+            transform: translateY(-50%);
+            color: var(--text-secondary);
+            cursor: grab;
+        }
+
+        /* 台词输入区 */
+        .quote-input-group {
+            display: flex;
+            gap: 12px;
+            margin-bottom: 16px;
+        }
+
+        .quote-input {
+            flex: 1;
+            padding: 12px 16px;
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            font-size: 0.9rem;
+            outline: none;
+            transition: border-color 0.2s;
+            font-family: inherit;
+        }
+
+        .quote-input:focus {
+            border-color: var(--accent);
+        }
+
+        /* 已选台词列表 */
+        .selected-quotes {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            min-height: 40px;
+        }
+
+        .quote-chip {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 8px 14px;
+            background: var(--accent-light);
+            border-radius: 20px;
+            font-size: 0.875rem;
+            color: var(--accent);
+            border: 1px solid var(--accent);
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .quote-chip:hover {
+            background: var(--accent);
+            color: white;
+        }
+
+        .quote-chip .num {
+            background: var(--accent);
+            color: white;
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 0.7rem;
+            font-weight: 600;
+        }
+
+        .quote-chip:hover .num {
+            background: white;
+            color: var(--accent);
+        }
+
+        .quote-chip .remove {
+            cursor: pointer;
+            opacity: 0.7;
+            margin-left: 4px;
+        }
+
+        .quote-chip .remove:hover { opacity: 1; }
+
+        .quote-chip.found {
+            background: #dcfce7;
+            border-color: var(--success);
+            color: #16a34a;
+        }
+
+        .quote-chip.found .num {
+            background: var(--success);
+        }
+
+        .quote-chip.not-found {
+            background: #fee2e2;
+            border-color: var(--error);
+            color: var(--error);
+        }
+
+        .quote-chip.not-found .num {
+            background: var(--error);
+        }
+
+        /* 进度条 */
+        .progress-bar {
+            height: 8px;
+            background: var(--border);
+            border-radius: 4px;
+            overflow: hidden;
+            margin-top: 12px;
+        }
+
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, var(--accent), var(--success));
+            transition: width 0.3s;
+        }
+
+        /* 状态徽章 */
+        .badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            padding: 4px 10px;
+            border-radius: 20px;
+            font-size: 0.75rem;
+            font-weight: 500;
+        }
+
+        .badge-success { background: #dcfce7; color: #16a34a; }
+        .badge-warning { background: #fef3c7; color: #d97706; }
+        .badge-error { background: #fee2e2; color: #dc2626; }
+        .badge-info { background: var(--accent-light); color: var(--accent); }
+
+        /* 状态消息 */
+        .status-msg {
+            padding: 12px 16px;
+            border-radius: 8px;
+            margin-top: 12px;
+            font-size: 0.875rem;
+            display: none;
+        }
+
+        .status-msg.info { display: block; background: var(--accent-light); color: var(--accent); border-left: 4px solid var(--accent); }
+        .status-msg.success { display: block; background: #dcfce7; color: #16a34a; border-left: 4px solid var(--success); }
+        .status-msg.error { display: block; background: #fee2e2; color: var(--error); border-left: 4px solid var(--error); }
+
+        /* 视频预览 */
+        .video-preview {
+            background: #000;
+            border-radius: var(--radius);
+            aspect-ratio: 16/9;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-size: 0.9rem;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .video-preview video {
+            width: 100%;
+            height: 100%;
+            object-fit: contain;
+        }
+
+        .video-preview .placeholder {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 8px;
+            opacity: 0.5;
+        }
+
+        /* 2x2网格布局 */
+        .grid-2x2 {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+        }
+
+        /* 标签页 */
+        .tabs {
+            display: flex;
+            gap: 4px;
+            background: var(--bg-primary);
+            padding: 4px;
+            border-radius: 8px;
+            width: fit-content;
+        }
+
+        .tab {
+            padding: 8px 20px;
+            border-radius: 6px;
+            font-size: 0.875rem;
+            cursor: pointer;
+            color: var(--text-secondary);
+            transition: all 0.2s;
+        }
+
+        .tab:hover { color: var(--text-primary); }
+        .tab.active {
+            background: var(--bg-secondary);
+            color: var(--text-primary);
+            font-weight: 500;
+            box-shadow: var(--shadow);
+        }
+
+        /* 搜索结果表格 */
+        .results-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 16px;
+        }
+
+        .results-table th, .results-table td {
+            padding: 10px 12px;
+            text-align: left;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .results-table th {
+            color: var(--accent);
+            font-weight: 500;
+            font-size: 0.875rem;
+        }
+
+        .results-table .found { color: var(--success); }
+        .results-table .not-found { color: var(--error); }
+
+        /* 多画面预览 */
+        .multiview-preview {
+            display: grid;
+            gap: 4px;
+            background: #000;
+            border-radius: var(--radius);
+            overflow: hidden;
+        }
+
+        .multiview-preview.layout-1 { grid-template-columns: 1fr; }
+        .multiview-preview.layout-2 { grid-template-columns: 1fr 1fr; }
+        .multiview-preview.layout-3 { grid-template-columns: 1fr 1fr 1fr; }
+
+        .multiview-preview .cam {
+            background: #1a1a2e;
+            aspect-ratio: 16/9;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-size: 0.8rem;
+            opacity: 0.6;
+        }
+
+        /* API状态 */
+        .api-status {
+            text-align: center;
+            padding: 8px 16px;
+            border-radius: 8px;
+            font-size: 0.8rem;
+            margin-bottom: 20px;
+        }
+
+        .api-status.connected { background: #dcfce7; color: #16a34a; }
+        .api-status.error { background: #fee2e2; color: #dc2626; }
+
+        /* 隐藏/显示 */
+        .hidden { display: none !important; }
+
+        /* 导出选项 */
+        .export-option {
+            display: flex;
+            justify-content: space-between;
+            padding: 12px;
+            background: var(--bg-primary);
+            border-radius: 8px;
+            margin-bottom: 8px;
+        }
+
+        .export-option span:first-child {
+            color: var(--text-secondary);
+        }
+
+        .export-option span:last-child {
+            font-weight: 500;
+        }
+
+        /* 空状态 */
+        .empty-state {
+            text-align: center;
+            padding: 40px 20px;
+            color: var(--text-secondary);
+        }
+
+        .empty-state i {
+            font-size: 2.5rem;
+            margin-bottom: 12px;
+            opacity: 0.5;
+        }
+
+        /* 迷你时间轴 */
+        .mini-timeline {
+            display: flex;
+            height: 28px;
+            margin-bottom: 16px;
+            border-radius: 6px;
+            overflow: hidden;
+            background: var(--bg-primary);
+            border: 1px solid var(--border);
+        }
+
+        .mini-timeline-segment {
+            flex-grow: 1;
+            cursor: pointer;
+            transition: all 0.2s;
+            position: relative;
+            min-width: 2px;
+        }
+
+        .mini-timeline-segment:hover {
+            opacity: 0.8;
+            transform: scaleY(1.2);
+        }
+
+        .mini-timeline-segment:nth-child(odd) {
+            background: #3b82f6;
+        }
+
+        .mini-timeline-segment:nth-child(even) {
+            background: #6366f1;
+        }
+
+        .mini-timeline-segment:nth-child(3n) {
+            background: #8b5cf6;
+        }
+
+        /* 模式切换 */
+        .mode-switch {
+            display: flex;
+            gap: 8px;
+            margin-left: auto;
+        }
+
+        .mode-btn {
+            padding: 6px 14px;
+            border-radius: 6px;
+            border: none;
+            cursor: pointer;
+            background: transparent;
+            color: var(--text-secondary);
+            font-size: 0.85rem;
+            transition: all 0.2s;
+        }
+
+        .mode-btn:hover {
+            background: var(--bg-primary);
+        }
+
+        .mode-btn.active {
+            background: var(--accent);
+            color: white;
+        }
+
+        /* 批量匹配 */
+        .bulk-textarea {
+            width: 100%;
+            padding: 12px;
+            border-radius: 8px;
+            border: 1px solid var(--border);
+            resize: vertical;
+            font-family: inherit;
+            font-size: 0.95rem;
+            line-height: 1.5;
+        }
+
+        .bulk-textarea:focus {
+            outline: none;
+            border-color: var(--accent);
+        }
+
+        .bulk-results {
+            margin-top: 16px;
+            max-height: 500px;
+            overflow-y: auto;
+        }
+
+        .bulk-result-item {
+            padding: 14px;
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            margin-bottom: 10px;
+            background: var(--bg-secondary);
+        }
+
+        .bulk-result-item.unmatched {
+            border-color: var(--error);
+            background: #fef2f2;
+        }
+
+        .bulk-result-header {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin-bottom: 8px;
+        }
+
+        .bulk-result-sentence {
+            font-weight: 500;
+            flex: 1;
+        }
+
+        .bulk-result-candidates {
+            margin-top: 10px;
+            padding-left: 8px;
+        }
+
+        .bulk-candidate {
+            padding: 8px 12px;
+            border-radius: 6px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 6px;
+            border: 1px solid transparent;
+            transition: all 0.2s;
+        }
+
+        .bulk-candidate:hover {
+            background: var(--accent-light);
+        }
+
+        .bulk-candidate.selected {
+            background: var(--accent-light);
+            border-color: var(--accent);
+        }
+
+        .bulk-candidate input[type="checkbox"] {
+            width: 18px;
+            height: 18px;
+            cursor: pointer;
+        }
+
+        .bulk-candidate-time {
+            font-family: monospace;
+            font-size: 0.85rem;
+            color: var(--text-secondary);
+            min-width: 100px;
+        }
+
+        .bulk-candidate-text {
+            flex: 1;
+            font-size: 0.9rem;
+        }
+
+        .bulk-candidate-confidence {
+            font-size: 0.8rem;
+            padding: 2px 8px;
+            border-radius: 4px;
+            background: var(--bg-primary);
+        }
+
+        .bulk-candidate-confidence.high {
+            background: #dcfce7;
+            color: #16a34a;
+        }
+
+        .bulk-candidate-confidence.medium {
+            background: #fef3c7;
+            color: #d97706;
+        }
+
+        .bulk-actions {
+            display: flex;
+            gap: 10px;
+            margin-top: 16px;
+            padding-top: 16px;
+            border-top: 1px solid var(--border);
+        }
+
+        /* 高亮动画 */
+        @keyframes highlight {
+            0% { background: #fef3c7; }
+            100% { background: transparent; }
+        }
+
+        .timeline-item.highlighted {
+            animation: highlight 1.5s ease;
+        }
+
+        /* 转录控制区域 */
+        .transcribe-controls {
+            padding: 4px 0;
+        }
+
+        .quote-controls {
+            padding: 4px 0;
+        }
+    </style>
+</head>
+<body>
+    <!-- 左侧导航 -->
+    <div class="sidebar">
+        <div class="logo">
+            <i class="ri-video-on-line"></i>
+            <span>字幕拼接</span>
+        </div>
+
+        <div class="nav-item active" data-page="home">
+            <i class="ri-home-4-line"></i>
+            <span>首页</span>
+        </div>
+        <div class="nav-item" data-page="extract">
+            <i class="ri-file-text-line"></i>
+            <span>字幕提取</span>
+        </div>
+        <div class="nav-item" data-page="concat">
+            <i class="ri-scissors-line"></i>
+            <span>视频拼接</span>
+        </div>
+        <div class="nav-item" data-page="history">
+            <i class="ri-history-line"></i>
+            <span>历史记录</span>
+        </div>
+
+        <div class="nav-divider"></div>
+
+        <div class="nav-item" data-page="settings">
+            <i class="ri-settings-3-line"></i>
+            <span>设置</span>
+        </div>
+
+        <div class="stats-box">
+            <div class="stats-title">处理统计</div>
+            <div class="stats-row">
+                <span>今日处理</span>
+                <span class="stats-value" id="todayCount">0</span>
+            </div>
+            <div class="stats-row">
+                <span>累计处理</span>
+                <span class="stats-value" id="totalCount">0</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- 主内容 -->
+    <div class="main">
+        <!-- 首页 -->
+        <div id="page-home" class="page-content">
+            <div class="header">
+                <h1>视频字幕拼接</h1>
+                <div class="header-actions">
+                    <button class="btn btn-secondary" onclick="showHelp()">
+                        <i class="ri-question-line"></i>
+                        帮助
+                    </button>
+                    <button class="btn btn-primary" onclick="resetProject()">
+                        <i class="ri-add-line"></i>
+                        新建项目
+                    </button>
+                </div>
+            </div>
+
+            <!-- API状态 -->
+            <div class="api-status" id="apiStatus">连接中...</div>
+
+            <!-- 模式选择 -->
+            <div class="mode-cards" id="modeCards">
+                <div class="mode-card selected" data-mode="short" onclick="selectMode('short')">
+                    <div class="mode-icon">
+                        <i class="ri-film-line"></i>
+                    </div>
+                    <h3>短视频</h3>
+                    <p>单个视频文件，几分钟内。直接上传，选择台词顺序，生成字幕并拼接。</p>
+                    <span class="mode-tag short">快速简单</span>
+                </div>
+                <div class="mode-card" data-mode="multicam" onclick="selectMode('multicam')">
+                    <div class="mode-icon" style="background: #fef3c7;">
+                        <i class="ri-vidicon-line" style="color: #d97706;"></i>
+                    </div>
+                    <h3>长视频多机位</h3>
+                    <p>多角度拍摄，时机较长。分别上传多个机位视频，自动对齐时间轴。</p>
+                    <span class="mode-tag long">多机位同步</span>
+                </div>
+            </div>
+
+            <!-- ==================== 短视频模式 ==================== -->
+            <div id="shortMode">
+                <!-- 上传视频 -->
+                <div class="card">
+                    <div class="card-header">
+                        <div class="card-title">
+                            <i class="ri-upload-cloud-line"></i>
+                            上传视频
+                        </div>
+                        <div class="tabs">
+                            <div class="tab active">上传视频</div>
+                        </div>
+                    </div>
+                    <div class="upload-zone" id="shortUploadZone" onclick="document.getElementById('shortVideoInput').click()">
+                        <i class="ri-cloud-upload-line"></i>
+                        <h4>拖拽视频到此处，或点击上传</h4>
+                        <p>支持 MP4、MOV、AVI、MKV 格式</p>
+                        <input type="file" id="shortVideoInput" accept="video/*" style="display:none" onchange="handleShortUpload(this)">
+                    </div>
+            </div>
+
+            <!-- 转录按钮 -->
+            <div class="card" id="shortTranscribeCard">
+                <div class="card-header">
+                    <div class="card-title">
+                        <i class="ri-mic-line"></i>
+                        Whisper 转录
+                    </div>
+                </div>
+                <div class="empty-state" id="shortTranscribeEmpty">
+                    <i class="ri-upload-cloud-line" style="font-size: 2rem; color: var(--text-secondary);"></i>
+                    <p style="color: var(--text-secondary); margin-top: 8px;">请先上传视频，然后进行转录</p>
+                </div>
+                <div class="transcribe-controls" id="shortTranscribeControls" style="display:none;">
+                    <button class="btn btn-primary" id="shortTranscribeBtn" onclick="transcribeShort()">
+                        <i class="ri-play-line"></i>
+                        开始转录
+                    </button>
+                </div>
+                <div class="progress-bar" id="shortProgressBar" style="display:none;">
+                    <div class="progress-fill" id="shortProgressFill"></div>
+                </div>
+                <div class="status-msg" id="shortStatus"></div>
+            </div>
+
+            <!-- 字幕时间轴 -->
+            <div class="card" id="shortTimelineCard">
+                <div class="card-header">
+                    <div class="card-title">
+                        <i class="ri-time-line"></i>
+                        字幕时间轴
+                    </div>
+                    <span class="badge badge-success" id="subtitleCount" style="display:none;">
+                        <i class="ri-check-line"></i>
+                        已转录 0 条
+                    </span>
+                </div>
+                <div class="empty-state" id="shortTimelineEmpty">
+                    <i class="ri-time-line" style="font-size: 2rem; color: var(--text-secondary);"></i>
+                    <p style="color: var(--text-secondary); margin-top: 8px;">转录完成后，字幕时间轴将显示在这里</p>
+                </div>
+                <div class="mini-timeline" id="shortMiniTimeline" style="display:none;"></div>
+                <div class="timeline" id="shortTimeline"></div>
+            </div>
+
+            <!-- 台词输入 -->
+            <div class="card" id="shortQuotesCard">
+                <div class="card-header">
+                    <div class="card-title">
+                        <i class="ri-text"></i>
+                        输入台词
+                    </div>
+                </div>
+                <div class="empty-state" id="shortQuotesEmpty">
+                    <i class="ri-text" style="font-size: 2rem; color: var(--text-secondary);"></i>
+                    <p style="color: var(--text-secondary); margin-top: 8px;">转录完成后可输入台词进行搜索</p>
+                </div>
+                <div class="quote-controls" id="shortQuoteControls" style="display:none;">
+                    <div class="quote-input-group">
+                        <input type="text" class="quote-input" id="shortQuoteInput" placeholder="输入台词，回车添加，或粘贴整段文字..." onkeypress="handleQuoteKeypress(event, 'short')" onpaste="handleQuotePaste(event, 'short')">
+                        <button class="btn btn-primary" onclick="addShortQuote()">
+                            <i class="ri-add-line"></i>
+                            添加
+                        </button>
+                    </div>
+                    <p style="font-size: 0.8rem; color: var(--text-secondary); margin-bottom: 16px;">
+                        支持逐句输入或粘贴整段文字（用逗号/句号/换行分隔）
+                    </p>
+                    <div class="selected-quotes" id="shortQuotes"></div>
+                    <button class="btn btn-secondary" style="margin-top: 16px;" onclick="searchShortQuotes()">
+                        <i class="ri-search-line"></i>
+                        搜索台词位置
+                    </button>
+                </div>
+                <div class="status-msg" id="shortSearchStatus"></div>
+            </div>
+
+            <!-- 搜索结果 -->
+            <div class="card" id="shortResultsCard">
+                <div class="card-header">
+                    <div class="card-title">
+                        <i class="ri-file-list-3-line"></i>
+                        搜索结果
+                    </div>
+                </div>
+                <div class="empty-state" id="shortResultsEmpty">
+                    <i class="ri-file-list-3-line" style="font-size: 2rem; color: var(--text-secondary);"></i>
+                    <p style="color: var(--text-secondary); margin-top: 8px;">搜索结果将在此展示</p>
+                </div>
+                <div class="results-content" id="shortResultsContent" style="display:none;">
+                    <table class="results-table">
+                        <thead>
+                            <tr>
+                                <th>#</th>
+                                <th>台词</th>
+                                <th>状态</th>
+                                <th>时间点</th>
+                                <th>匹配方式</th>
+                            </tr>
+                        </thead>
+                        <tbody id="shortResultsBody"></tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- 预览和导出 -->
+            <div class="grid-2x2" id="shortExportGrid">
+                <div class="card">
+                    <div class="card-header">
+                        <div class="card-title">
+                            <i class="ri-play-line"></i>
+                            视频预览
+                        </div>
+                    </div>
+                    <div class="video-preview" id="shortVideoPreview">
+                        <div class="placeholder">
+                            <i class="ri-film-line" style="font-size: 3rem;"></i>
+                            <span>等待拼接</span>
+                        </div>
+                    </div>
+                    <div class="progress-bar" id="shortConcatProgress" style="display:none;">
+                        <div class="progress-fill" id="shortConcatFill"></div>
+                    </div>
+                </div>
+                <div class="card">
+                    <div class="card-header">
+                        <div class="card-title">
+                            <i class="ri-file-list-3-line"></i>
+                            导出设置
+                        </div>
+                    </div>
+                    <div id="exportOptions">
+                        <div class="export-option">
+                            <span>输出格式</span>
+                            <span>FCPXML</span>
+                        </div>
+                        <div class="export-option">
+                            <span>视频画质</span>
+                            <span>1080p</span>
+                        </div>
+                        <div class="export-option">
+                            <span>片段数量</span>
+                            <span id="segmentCount">0 个</span>
+                        </div>
+                    </div>
+                    <button class="btn btn-primary" style="width: 100%; justify-content: center; margin-top: 16px;" onclick="concatShortVideo()">
+                        <i class="ri-scissors-line"></i>
+                        开始拼接
+                    </button>
+                    <button class="btn btn-secondary" style="width: 100%; justify-content: center; margin-top: 8px;" onclick="exportShortFCPXML()">
+                        <i class="ri-download-line"></i>
+                        导出 FCPXML
+                    </button>
+                    <button class="btn btn-secondary" style="width: 100%; justify-content: center; margin-top: 8px;" onclick="exportShortPRPROJ()">
+                        <i class="ri-film-line"></i>
+                        导出 PR XML
+                    </button>
+                    <button class="btn btn-secondary" style="width: 100%; justify-content: center; margin-top: 8px;" onclick="exportShortEDL()">
+                        <i class="ri-file-list-3-line"></i>
+                        导出 EDL
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- ==================== 多机位模式 ==================== -->
+        <div id="multicamMode" style="display:none;">
+            <!-- 上传视频 -->
+            <div class="card">
+                <div class="card-header">
+                    <div class="card-title">
+                        <i class="ri-upload-cloud-line"></i>
+                        上传多机位视频
+                    </div>
+                    <span class="badge badge-info">最多3个机位</span>
+                </div>
+                <div class="camera-grid">
+                    <div class="camera-box" onclick="document.getElementById('cam1Input').click()">
+                        <i class="ri-vidicon-line"></i>
+                        <p>机位 1 <strong>(音频)</strong></p>
+                        <small>点击上传</small>
+                        <div class="filename" id="cam1Filename"></div>
+                        <input type="file" id="cam1Input" accept="video/*" style="display:none" onchange="handleCamUpload(this, 0)">
+                    </div>
+                    <div class="camera-box" onclick="document.getElementById('cam2Input').click()">
+                        <i class="ri-vidicon-line"></i>
+                        <p>机位 2</p>
+                        <small>点击上传</small>
+                        <div class="filename" id="cam2Filename"></div>
+                        <input type="file" id="cam2Input" accept="video/*" style="display:none" onchange="handleCamUpload(this, 1)">
+                    </div>
+                    <div class="camera-box" onclick="document.getElementById('cam3Input').click()">
+                        <i class="ri-vidicon-line"></i>
+                        <p>机位 3</p>
+                        <small>点击上传</small>
+                        <div class="filename" id="cam3Filename"></div>
+                        <input type="file" id="cam3Input" accept="video/*" style="display:none" onchange="handleCamUpload(this, 2)">
+                    </div>
+                </div>
+            </div>
+
+            <!-- 转录 -->
+            <div class="card" id="mcTranscribeCard">
+                <div class="card-header">
+                    <div class="card-title">
+                        <i class="ri-mic-line"></i>
+                        Whisper 转录（机位1音频）
+                    </div>
+                </div>
+                <div class="empty-state" id="mcTranscribeEmpty">
+                    <i class="ri-upload-cloud-line" style="font-size: 2rem; color: var(--text-secondary);"></i>
+                    <p style="color: var(--text-secondary); margin-top: 8px;">请先上传视频，然后进行转录</p>
+                </div>
+                <div class="transcribe-controls" id="mcTranscribeControls" style="display:none;">
+                    <button class="btn btn-primary" id="mcTranscribeBtn" onclick="transcribeMulticam()">
+                        <i class="ri-play-line"></i>
+                        开始转录
+                    </button>
+                </div>
+                <div class="progress-bar" id="mcProgressBar" style="display:none;">
+                    <div class="progress-fill" id="mcProgressFill"></div>
+                </div>
+                <div class="status-msg" id="mcStatus"></div>
+            </div>
+
+            <!-- 字幕时间轴 -->
+            <div class="card" id="mcTimelineCard">
+                <div class="card-header">
+                    <div class="card-title">
+                        <i class="ri-time-line"></i>
+                        字幕时间轴
+                    </div>
+                    <span class="badge badge-success" id="mcSubtitleCount" style="display:none;">
+                        <i class="ri-check-line"></i>
+                        已转录 0 条
+                    </span>
+                </div>
+                <div class="empty-state" id="mcTimelineEmpty">
+                    <i class="ri-time-line" style="font-size: 2rem; color: var(--text-secondary);"></i>
+                    <p style="color: var(--text-secondary); margin-top: 8px;">转录完成后，字幕时间轴将显示在这里</p>
+                </div>
+                <div class="mini-timeline" id="mcMiniTimeline" style="display:none;"></div>
+                <div class="timeline" id="mcTimeline"></div>
+            </div>
+
+            <!-- 台词输入 -->
+            <div class="card" id="mcQuotesCard">
+                <div class="card-header">
+                    <div class="card-title">
+                        <i class="ri-text"></i>
+                        输入台词
+                    </div>
+                </div>
+                <div class="empty-state" id="mcQuotesEmpty">
+                    <i class="ri-text" style="font-size: 2rem; color: var(--text-secondary);"></i>
+                    <p style="color: var(--text-secondary); margin-top: 8px;">转录完成后可输入台词进行搜索</p>
+                </div>
+                <div class="quote-controls" id="mcQuoteControls" style="display:none;">
+                    <div class="quote-input-group">
+                        <input type="text" class="quote-input" id="mcQuoteInput" placeholder="输入台词，回车添加，或粘贴整段文字..." onkeypress="handleQuoteKeypress(event, 'mc')" onpaste="handleQuotePaste(event, 'mc')">
+                        <button class="btn btn-primary" onclick="addMcQuote()">
+                            <i class="ri-add-line"></i>
+                            添加
+                        </button>
+                    </div>
+                    <p style="font-size: 0.8rem; color: var(--text-secondary); margin-bottom: 16px;">
+                        支持逐句输入或粘贴整段文字（用逗号/句号/换行分隔）
+                    </p>
+                    <div class="selected-quotes" id="mcQuotes"></div>
+                    <button class="btn btn-secondary" style="margin-top: 16px;" onclick="searchMcQuotes()">
+                        <i class="ri-search-line"></i>
+                        搜索台词位置
+                    </button>
+                </div>
+                <div class="status-msg" id="mcSearchStatus"></div>
+            </div>
+
+            <!-- 搜索结果 -->
+            <div class="card" id="mcResultsCard">
+                <div class="card-header">
+                    <div class="card-title">
+                        <i class="ri-file-list-3-line"></i>
+                        搜索结果
+                    </div>
+                </div>
+                <div class="empty-state" id="mcResultsEmpty">
+                    <i class="ri-file-list-3-line" style="font-size: 2rem; color: var(--text-secondary);"></i>
+                    <p style="color: var(--text-secondary); margin-top: 8px;">搜索结果将在此展示</p>
+                </div>
+                <div class="results-content" id="mcResultsContent" style="display:none;">
+                    <table class="results-table">
+                        <thead>
+                            <tr>
+                                <th>#</th>
+                                <th>台词</th>
+                                <th>状态</th>
+                                <th>时间点</th>
+                                <th>匹配方式</th>
+                            </tr>
+                        </thead>
+                        <tbody id="mcResultsBody"></tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- 多画面预览 -->
+            <div class="card" id="mcPreviewCard" style="display:none;">
+                <div class="card-header">
+                    <div class="card-title">
+                        <i class="ri-tv-line"></i>
+                        多画面预览
+                    </div>
+                </div>
+                <div class="multiview-preview layout-3" id="multiviewPreview">
+                    <div class="cam">机位 1</div>
+                    <div class="cam">机位 2</div>
+                    <div class="cam">机位 3</div>
+                </div>
+            </div>
+
+            <!-- 拼接和导出 -->
+            <div class="card" id="mcExportCard" style="display:none;">
+                <div class="card-header">
+                    <div class="card-title">
+                        <i class="ri-scissors-line"></i>
+                        视频拼接
+                    </div>
+                </div>
+                <button class="btn btn-primary" style="width: 100%;" onclick="concatMulticamVideo()">
+                    <i class="ri-play-line"></i>
+                    开始拼接（多画面1x3）
+                </button>
+                <div class="progress-bar" id="mcConcatProgress" style="display:none;">
+                    <div class="progress-fill" id="mcConcatFill"></div>
+                </div>
+                <div class="status-msg" id="mcConcatStatus"></div>
+
+                <div id="mcExportBtns" class="hidden" style="margin-top: 16px;">
+                    <button class="btn btn-primary" style="width: 100%;" onclick="downloadMcVideo()">
+                        <i class="ri-download-line"></i>
+                        下载拼接视频
+                    </button>
+                    <button class="btn btn-secondary" style="width: 100%; margin-top: 8px;" onclick="exportMcFCPXML()">
+                        <i class="ri-file-xml-line"></i>
+                        导出 FCPXML 工程文件
+                    </button>
+                    <button class="btn btn-secondary" style="width: 100%; margin-top: 8px;" onclick="exportMcPRPROJ()">
+                        <i class="ri-film-line"></i>
+                        导出 PR XML
+                    </button>
+                    <button class="btn btn-secondary" style="width: 100%; margin-top: 8px;" onclick="exportMcEDL()">
+                        <i class="ri-file-list-3-line"></i>
+                        导出 EDL
+                    </button>
+                </div>
+            </div>
+        </div>
+        </div>
+
+        <!-- 字幕提取页面 -->
+        <div id="page-extract" class="page-content" style="display:none;">
+            <div class="header">
+                <h1>字幕提取</h1>
+            </div>
+            <div class="api-status" id="apiStatusExtract">连接中...</div>
+            <div class="card">
+                <div class="card-header">
+                    <div class="card-title">
+                        <i class="ri-upload-cloud-line"></i>
+                        上传视频提取字幕
+                    </div>
+                </div>
+                <div class="upload-zone" onclick="document.getElementById('extractVideoInput').click()">
+                    <i class="ri-cloud-upload-line"></i>
+                    <h4>拖拽视频到此处，或点击上传</h4>
+                    <p>支持 MP4、MOV、AVI、MKV 格式</p>
+                    <input type="file" id="extractVideoInput" accept="video/*" style="display:none" onchange="handleExtractUpload(this)">
+                </div>
+            </div>
+            <div class="card" id="extractResultCard" style="display:none;">
+                <div class="card-header">
+                    <div class="card-title">
+                        <i class="ri-file-text-line"></i>
+                        提取结果
+                    </div>
+                </div>
+                <div class="timeline" id="extractTimeline"></div>
+                <button class="btn btn-secondary" style="margin-top: 16px;" onclick="downloadSubtitles()">
+                    <i class="ri-download-line"></i>
+                    下载字幕文件
+                </button>
+            </div>
+        </div>
+
+        <!-- 视频拼接页面 -->
+        <div id="page-concat" class="page-content" style="display:none;">
+            <div class="header">
+                <h1>视频拼接</h1>
+            </div>
+            <div class="api-status" id="apiStatusConcat">连接中...</div>
+            <div class="card">
+                <div class="card-header">
+                    <div class="card-title">
+                        <i class="ri-upload-cloud-line"></i>
+                        上传多个视频片段
+                    </div>
+                </div>
+                <div class="upload-zone" onclick="document.getElementById('concatVideoInput').click()">
+                    <i class="ri-cloud-upload-line"></i>
+                    <h4>拖拽多个视频到此处，或点击上传</h4>
+                    <p>支持 MP4、MOV、AVI、MKV 格式</p>
+                    <input type="file" id="concatVideoInput" accept="video/*" multiple style="display:none" onchange="handleConcatUpload(this)">
+                </div>
+                <div id="concatFileList" class="selected-quotes" style="margin-top: 16px;"></div>
+            </div>
+            <div class="card" id="concatResultCard" style="display:none;">
+                <div class="card-header">
+                    <div class="card-title">
+                        <i class="ri-play-line"></i>
+                        预览
+                    </div>
+                </div>
+                <div class="video-preview" id="concatVideoPreview">
+                    <div class="placeholder">
+                        <i class="ri-film-line" style="font-size: 3rem;"></i>
+                        <span>等待拼接</span>
+                    </div>
+                </div>
+                <button class="btn btn-primary" style="width: 100%; margin-top: 16px;" onclick="concatVideos()">
+                    <i class="ri-scissors-line"></i>
+                    开始拼接
+                </button>
+            </div>
+        </div>
+
+        <!-- 历史记录页面 -->
+        <div id="page-history" class="page-content" style="display:none;">
+            <div class="header">
+                <h1>历史记录</h1>
+            </div>
+            <div class="card">
+                <div class="card-header">
+                    <div class="card-title">
+                        <i class="ri-history-line"></i>
+                        最近的视频处理记录
+                    </div>
+                </div>
+                <div id="historyList">
+                    <p style="color: var(--text-secondary); text-align: center; padding: 40px;">
+                        暂无历史记录
+                    </p>
+                </div>
+            </div>
+        </div>
+
+        <!-- 设置页面 -->
+        <div id="page-settings" class="page-content" style="display:none;">
+            <div class="header">
+                <h1>设置</h1>
+            </div>
+            <div class="card">
+                <div class="card-header">
+                    <div class="card-title">
+                        <i class="ri-settings-3-line"></i>
+                        基本设置
+                    </div>
+                </div>
+                <div class="export-option">
+                    <span>Whisper 模型</span>
+                    <span>base (默认)</span>
+                </div>
+                <div class="export-option">
+                    <span>FFmpeg 路径</span>
+                    <span id="ffmpegPathDisplay">已配置</span>
+                </div>
+                <div class="export-option">
+                    <span>输出目录</span>
+                    <span>outputs/</span>
+                </div>
+            </div>
+            <div class="card" style="margin-top: 24px;">
+                <div class="card-header">
+                    <div class="card-title">
+                        <i class="ri-information-line"></i>
+                        关于
+                    </div>
+                </div>
+                <p style="color: var(--text-secondary); line-height: 1.8;">
+                    视频字幕拼接处理器 v1.0<br>
+                    支持 Whisper 语音识别、FFmpeg 视频处理、FCPXML 导出
+                </p>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // API 配置
+        const API_BASE = 'http://localhost:5000/api';
+
+        // 将绝对路径转换为URL路径
+        function absoluteToUrlPath(absPath) {
+            if (!absPath) return '';
+            // 处理 Windows 路径
+            const normalized = absPath.replace(/\\/g, '/');
+            // 匹配 /outputs/xxx 或 /uploads/xxx 格式，返回完整相对路径
+            const match = normalized.match(/(\/(?:outputs|uploads)\/.+)$/);
+            if (match) {
+                return match[1];
+            }
+            return normalized;
+        }
+
+        // 状态
+        let state = {
+            mode: 'short',
+            projectId: null,
+            videoPaths: [],
+            subtitles: [],
+            quotes: [],
+            searchResults: [],
+            outputPath: null,
+            uploadedCameras: [false, false, false]
+        };
+
+        // 初始化
+        async function init() {
+            try {
+                const res = await fetch(`${API_BASE}/health`);
+                const data = await res.json();
+                document.getElementById('apiStatus').textContent = `API已连接 - FFmpeg: ${data.ffmpeg ? '✓' : '✗'} - Whisper: ${data.whisper ? '✓' : '✗'}`;
+                document.getElementById('apiStatus').className = 'api-status connected';
+            } catch (e) {
+                document.getElementById('apiStatus').textContent = 'API未连接，请先启动后端';
+                document.getElementById('apiStatus').className = 'api-status error';
+            }
+
+            // 绑定侧边栏导航点击
+            document.querySelectorAll('.nav-item[data-page]').forEach(item => {
+                item.addEventListener('click', () => switchPage(item.dataset.page));
+            });
+        }
+
+        // 切换页面
+        function switchPage(page) {
+            // 更新导航高亮
+            document.querySelectorAll('.nav-item').forEach(item => {
+                item.classList.toggle('active', item.dataset.page === page);
+            });
+
+            // 隐藏所有页面
+            document.querySelectorAll('.page-content').forEach(p => p.style.display = 'none');
+
+            // 显示目标页面
+            const targetPage = document.getElementById(`page-${page}`);
+            if (targetPage) {
+                targetPage.style.display = 'block';
+            }
+
+            // 更新 header 标题
+            const titles = {
+                'home': '视频字幕拼接',
+                'extract': '字幕提取',
+                'concat': '视频拼接',
+                'history': '历史记录',
+                'settings': '设置'
+            };
+            document.querySelector('.header h1').textContent = titles[page] || '视频字幕拼接';
+        }
+
+        // 选择模式
+        function selectMode(mode) {
+            state.mode = mode;
+            document.querySelectorAll('.mode-card').forEach(c => c.classList.remove('selected'));
+            document.querySelector(`.mode-card[data-mode="${mode}"]`).classList.add('selected');
+
+            document.getElementById('shortMode').style.display = mode === 'short' ? 'block' : 'none';
+            document.getElementById('multicamMode').style.display = mode === 'multicam' ? 'block' : 'none';
+        }
+
+        // 重置项目
+        function resetProject() {
+            state = {
+                mode: state.mode,
+                projectId: null,
+                videoPaths: [],
+                subtitles: [],
+                quotes: [],
+                searchResults: [],
+                outputPath: null,
+                uploadedCameras: [false, false, false]
+            };
+
+            // 重置空状态显示
+            resetCardEmptyStates('short');
+            resetCardEmptyStates('mc');
+
+            // 清空上传状态
+            document.querySelectorAll('.camera-box').forEach(b => b.classList.remove('uploaded'));
+            document.querySelectorAll('.filename').forEach(f => f.textContent = '');
+            document.getElementById('shortQuotes').innerHTML = '';
+            document.getElementById('mcQuotes').innerHTML = '';
+        }
+
+        // 重置卡片的空状态
+        function resetCardEmptyStates(prefix) {
+            // 转录卡片
+            document.getElementById(`${prefix}TranscribeEmpty`).style.display = 'block';
+            document.getElementById(`${prefix}TranscribeControls`).style.display = 'none';
+            document.getElementById(`${prefix}ProgressBar`).style.display = 'none';
+            
+            // 时间轴卡片
+            document.getElementById(`${prefix}TimelineEmpty`).style.display = 'block';
+            document.getElementById(`${prefix}MiniTimeline`).style.display = 'none';
+            document.getElementById(`${prefix}Timeline`).innerHTML = '';
+            
+            // 台词卡片
+            document.getElementById(`${prefix}QuotesEmpty`).style.display = 'block';
+            document.getElementById(`${prefix}QuoteControls`).style.display = 'none';
+            
+            // 结果卡片
+            document.getElementById(`${prefix}ResultsEmpty`).style.display = 'block';
+            document.getElementById(`${prefix}ResultsContent`).style.display = 'none';
+            
+            // 导出网格
+            document.getElementById(`${prefix}ExportGrid`).style.display = 'none';
+        }
+
+        // ==================== 短视频模式 ====================
+
+        // 短视频上传
+        async function handleShortUpload(input) {
+            const file = input.files[0];
+            if (!file) return;
+
+            const formData = new FormData();
+            formData.append('file', file);
+
+            try {
+                const res = await fetch(`${API_BASE}/upload`, {
+                    method: 'POST',
+                    body: formData
+                });
+                const data = await res.json();
+
+                if (data.success) {
+                    state.projectId = data.file_id;
+                    state.videoPaths = [data.video_path];
+
+                    // 显示转录控制区域
+                    document.getElementById('shortTranscribeEmpty').style.display = 'none';
+                    document.getElementById('shortTranscribeControls').style.display = 'block';
+                    showStatus('shortStatus', `已上传: ${file.name}`, 'success');
+                }
+            } catch (e) {
+                showStatus('shortStatus', '上传失败: ' + e.message, 'error');
+            }
+        }
+
+        // 短视频转录（真实进度轮询）
+        async function transcribeShort() {
+            if (!state.videoPaths[0]) {
+                alert('请先上传视频');
+                return;
+            }
+
+            const btn = document.getElementById('shortTranscribeBtn');
+            const progress = document.getElementById('shortProgressBar');
+            const fill = document.getElementById('shortProgressFill');
+
+            btn.disabled = true;
+            progress.style.display = 'block';
+            showStatus('shortStatus', '正在转录，请稍候...', 'info');
+
+            try {
+                // 启动转录（后台线程）
+                const res = await fetch(`${API_BASE}/multicam/transcribe`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        video_path: state.videoPaths[0],
+                        project_id: state.projectId
+                    })
+                });
+                const data = await res.json();
+
+                if (data.status !== 'started') {
+                    showStatus('shortStatus', '转录启动失败: ' + (data.error || '未知错误'), 'error');
+                    btn.disabled = false;
+                    return;
+                }
+
+                // 轮询进度
+                const projectId = data.project_id;
+                const pollInterval = setInterval(async () => {
+                    try {
+                        const progressRes = await fetch(`${API_BASE}/multicam/transcribe-progress`, {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ project_id: projectId })
+                        });
+                        const progressData = await progressRes.json();
+
+                        // 更新进度条
+                        fill.style.width = progressData.percent + '%';
+
+                        if (progressData.status === 'done') {
+                            clearInterval(pollInterval);
+                            fill.style.width = '100%';
+                            
+                            // 获取字幕数据（从服务器重新获取）
+                            const subtitleRes = await fetch(`${API_BASE}/multicam/subtitles?project_id=${projectId}`);
+                            const subtitleData = await subtitleRes.json();
+                            
+                            if (subtitleData.subtitles) {
+                                state.subtitles = subtitleData.subtitles;
+                                renderShortTimeline();
+                                
+                                // 显示时间轴和台词区域
+                                document.getElementById('shortTimelineEmpty').style.display = 'none';
+                                document.getElementById('shortMiniTimeline').style.display = 'flex';
+                                document.getElementById('subtitleCount').style.display = 'inline-flex';
+                                document.getElementById('subtitleCount').innerHTML = `<i class="ri-check-line"></i> 已转录 ${state.subtitles.length} 条`;
+                                
+                                document.getElementById('shortQuotesEmpty').style.display = 'none';
+                                document.getElementById('shortQuoteControls').style.display = 'block';
+                                
+                                showStatus('shortStatus', `转录完成！共 ${state.subtitles.length} 条字幕`, 'success');
+                            }
+                        } else if (progressData.status === 'error') {
+                            clearInterval(pollInterval);
+                            showStatus('shortStatus', '转录失败: ' + progressData.error, 'error');
+                        }
+                    } catch (e) {
+                        console.error('轮询进度失败:', e);
+                    }
+                }, 1500);
+
+            } catch (e) {
+                showStatus('shortStatus', '转录失败: ' + e.message, 'error');
+            }
+
+            btn.disabled = false;
+        }
+
+        // 渲染短视频时间轴（含迷你时间轴）
+        function renderShortTimeline() {
+            const timeline = document.getElementById('shortTimeline');
+            timeline.innerHTML = state.subtitles.map((s, i) => `
+                <div class="timeline-item" draggable="true" data-index="${i}">
+                    <div class="timeline-time">
+                        <i class="ri-play-circle-line"></i>
+                        ${formatTime(s.start)} - ${formatTime(s.end)}
+                    </div>
+                    <div class="timeline-text">${s.text}</div>
+                    <div class="timeline-handle">
+                        <i class="ri-drag-move-line"></i>
+                    </div>
+                </div>
+            `).join('');
+
+            // 渲染迷你时间轴
+            renderMiniTimeline('shortMiniTimeline', state.subtitles);
+
+            // 拖拽排序
+            setupTimelineDrag();
+        }
+
+        // 渲染迷你时间轴
+        function renderMiniTimeline(containerId, subtitles) {
+            const container = document.getElementById(containerId);
+            if (!container || !subtitles || subtitles.length === 0) return;
+
+            const totalDuration = subtitles[subtitles.length - 1].end - subtitles[0].start;
+            container.innerHTML = subtitles.map((s, i) => {
+                const duration = s.end - s.start;
+                const flexGrow = totalDuration > 0 ? duration / totalDuration : 1;
+                return `
+                    <div class="mini-timeline-segment" 
+                         style="flex-grow: ${flexGrow};"
+                         title="${formatTime(s.start)} - ${formatTime(s.end)}: ${s.text.substring(0, 30)}${s.text.length > 30 ? '...' : ''}"
+                         onclick="scrollToSubtitle('${containerId.replace('MiniTimeline', 'Timeline')}', ${i})"
+                         data-index="${i}"
+                    ></div>
+                `;
+            }).join('');
+        }
+
+        // 滚动到指定字幕
+        function scrollToSubtitle(timelineId, index) {
+            const timeline = document.getElementById(timelineId);
+            const item = timeline.querySelector(`[data-index="${index}"]`);
+            if (item) {
+                item.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                item.classList.add('highlighted');
+                setTimeout(() => item.classList.remove('highlighted'), 1500);
+            }
+        }
+
+        // 时间轴拖拽
+        function setupTimelineDrag() {
+            const items = document.querySelectorAll('.timeline-item');
+            items.forEach(item => {
+                item.addEventListener('dragstart', () => item.classList.add('dragging'));
+                item.addEventListener('dragend', () => item.classList.remove('dragging'));
+                item.addEventListener('dragover', e => e.preventDefault());
+                item.addEventListener('drop', handleTimelineDrop);
+            });
+        }
+
+        function handleTimelineDrop(e) {
+            const dragging = document.querySelector('.dragging');
+            if (!dragging) return;
+
+            const targetItem = e.target.closest('.timeline-item');
+            if (!targetItem || targetItem === dragging) return;
+
+            const rect = targetItem.getBoundingClientRect();
+            const midpoint = rect.top + rect.height / 2;
+
+            if (e.clientY < midpoint) {
+                targetItem.before(dragging);
+            } else {
+                targetItem.after(dragging);
+            }
+
+            // 更新字幕顺序
+            const newOrder = [...document.querySelectorAll('.timeline-item')].map(item =>
+                state.subtitles[parseInt(item.dataset.index)]
+            );
+            state.subtitles = newOrder;
+        }
+
+        // 添加台词
+        function addShortQuote() {
+            const input = document.getElementById('shortQuoteInput');
+            const text = input.value.trim();
+            if (!text) return;
+
+            state.quotes.push(text);
+            input.value = '';
+            renderShortQuotes();
+        }
+
+        function handleQuoteKeypress(e, mode) {
+            if (e.key === 'Enter') {
+                if (mode === 'short') addShortQuote();
+                else addMcQuote();
+            }
+        }
+
+        // 处理粘贴事件（支持粘贴整段文字自动拆分）
+        function handleQuotePaste(e, mode) {
+            e.preventDefault();
+            const text = (e.clipboardData || window.clipboardData).getData('text');
+            if (!text) return;
+
+            // 按逗号、句号、感叹号、问号、换行拆分
+            const sentences = text.split(/[,，。！？!?\n]+/).map(s => s.trim()).filter(s => s.length > 0);
+            
+            if (sentences.length > 1) {
+                // 粘贴了多句话，逐句添加
+                sentences.forEach(sentence => {
+                    if (mode === 'short') {
+                        state.quotes.push(sentence);
+                    } else {
+                        state.quotes.push(sentence);
+                    }
+                });
+                if (mode === 'short') {
+                    renderShortQuotes();
+                } else {
+                    renderMcQuotes();
+                }
+            } else {
+                // 只有一句话，插入到输入框
+                const input = mode === 'short' ? document.getElementById('shortQuoteInput') : document.getElementById('mcQuoteInput');
+                input.value = text.trim();
+            }
+        }
+
+        function renderShortQuotes() {
+            const container = document.getElementById('shortQuotes');
+            container.innerHTML = state.quotes.map((q, i) => `
+                <div class="quote-chip" onclick="removeShortQuote(${i})">
+                    <span class="num">${i + 1}</span>
+                    ${q.length > 20 ? q.substring(0, 20) + '...' : q}
+                    <span class="remove"><i class="ri-close-line"></i></span>
+                </div>
+            `).join('');
+        }
+
+        function removeShortQuote(index) {
+            state.quotes.splice(index, 1);
+            renderShortQuotes();
+        }
+
+        // 搜索短视频台词
+        async function searchShortQuotes() {
+            if (state.quotes.length === 0) {
+                alert('请先添加台词');
+                return;
+            }
+
+            const status = document.getElementById('shortSearchStatus');
+            status.className = 'status-msg info';
+            status.textContent = '正在搜索...';
+            status.style.display = 'block';
+
+            try {
+                const res = await fetch(`${API_BASE}/multicam/search`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        quotes: state.quotes,
+                        subtitles: state.subtitles
+                    })
+                });
+                const data = await res.json();
+
+                console.log('=== Search Results ===');
+                console.log('quotes:', state.quotes);
+                console.log('results:', JSON.stringify(data.results, null, 2));
+
+                if (data.success) {
+                    state.searchResults = data.results;
+                    renderShortResults();
+
+                    const found = data.results.filter(r => r.found).length;
+                    status.className = 'status-msg success';
+                    status.textContent = `搜索完成！找到 ${found}/${data.total} 条`;
+
+                    if (found === data.total) {
+                        document.getElementById('shortExportGrid').style.display = 'grid';
+                        document.getElementById('segmentCount').textContent = found + ' 个';
+                    }
+                }
+            } catch (e) {
+                status.className = 'status-msg error';
+                status.textContent = '搜索失败: ' + e.message;
+            }
+        }
+
+        function renderShortResults() {
+            document.getElementById('shortResultsCard').style.display = 'block';
+            document.getElementById('shortResultsEmpty').style.display = 'none';
+            document.getElementById('shortResultsContent').style.display = 'block';
+            const tbody = document.getElementById('shortResultsBody');
+            tbody.innerHTML = state.searchResults.map(r => `
+                <tr class="${r.found ? 'result-row clickable' : 'result-row'}" ${r.found ? `onclick="jumpToTime(${r.start})"` : ''}>
+                    <td>${r.index}</td>
+                    <td>${r.quote.substring(0, 30)}${r.quote.length > 30 ? '...' : ''}</td>
+                    <td class="${r.found ? 'found' : 'not-found'}">${r.found ? '✓' : '✗'}</td>
+                    <td>${r.start !== null ? formatTime(r.start) : '-'}</td>
+                    <td>${r.strategy || '-'}</td>
+                </tr>
+            `).join('');
+
+            // 更新 chips 状态
+            renderShortQuotes();
+        }
+
+        // 跳转到指定时间点
+        function jumpToTime(seconds) {
+            const video = document.querySelector('#shortVideoPreview video');
+            if (video) {
+                video.currentTime = seconds;
+                video.play();
+            }
+        }
+
+        // 拼接短视频
+        async function concatShortVideo() {
+            if (state.searchResults.length === 0) {
+                alert('请先搜索台词');
+                return;
+            }
+
+            const progress = document.getElementById('shortConcatProgress');
+            const statusEl = document.getElementById('shortStatus');
+
+            progress.style.display = 'block';
+            showStatus('shortStatus', '正在拼接视频...', 'info');
+
+            let prog = 0;
+            const interval = setInterval(() => {
+                prog = Math.min(prog + 3, 95);
+                document.getElementById('shortConcatFill').style.width = prog + '%';
+            }, 300);
+
+            try {
+                const segmentTimes = state.searchResults
+                    .filter(r => r.found)
+                    .map(r => [r.start, r.end]);
+
+                const res = await fetch(`${API_BASE}/multicam/concat`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        video_paths: state.videoPaths,
+                        segment_times: segmentTimes,
+                        project_id: state.projectId
+                    })
+                });
+                const data = await res.json();
+
+                clearInterval(interval);
+                document.getElementById('shortConcatFill').style.width = '100%';
+
+                if (data.success) {
+                    state.outputPath = data.output_path;
+                    showStatus('shortStatus', '拼接完成！', 'success');
+
+                    // 更新预览
+                    const preview = document.getElementById('shortVideoPreview');
+                    preview.innerHTML = `<video src="${absoluteToUrlPath(data.output_path)}" controls></video>`;
+                } else {
+                    showStatus('shortStatus', '拼接失败: ' + data.error, 'error');
+                }
+            } catch (e) {
+                clearInterval(interval);
+                showStatus('shortStatus', '拼接失败: ' + e.message, 'error');
+            }
+        }
+
+        // 短视频模式导出FCPXML
+        async function exportShortFCPXML() {
+            if (state.searchResults.length === 0) {
+                alert('请先进行搜索匹配');
+                return;
+            }
+
+            const segmentTimes = state.searchResults
+                .filter(r => r.found)
+                .map(r => [r.start, r.end]);
+
+            if (segmentTimes.length === 0) {
+                alert('没有找到匹配的片段');
+                return;
+            }
+
+            try {
+                const res = await fetch(`${API_BASE}/multicam/export-fcpxml`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        video_paths: state.videoPaths,
+                        segment_times: segmentTimes,
+                        project_name: `short_${state.projectId}`
+                    })
+                });
+                const data = await res.json();
+
+                if (data.success) {
+                    downloadFile(absoluteToUrlPath(data.xml_path));
+                } else {
+                    alert('导出失败: ' + (data.error || '未知错误'));
+                }
+            } catch (e) {
+                alert('导出失败: ' + e.message);
+            }
+        }
+
+        async function exportShortPRPROJ() {
+            if (state.searchResults.length === 0) {
+                alert('请先进行搜索匹配');
+                return;
+            }
+            const segmentTimes = state.searchResults.filter(r => r.found).map(r => [r.start, r.end]);
+            if (segmentTimes.length === 0) {
+                alert('没有找到匹配的片段');
+                return;
+            }
+            try {
+                const res = await fetch(`${API_BASE}/multicam/export-prproj`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        video_paths: state.videoPaths,
+                        segment_times: segmentTimes,
+                        project_name: `short_${state.projectId}`
+                    })
+                });
+                const data = await res.json();
+                if (data.success) {
+                    downloadFile(absoluteToUrlPath(data.prproj_path));
+                } else {
+                    alert('导出失败: ' + (data.error || '未知错误'));
+                }
+            } catch (e) {
+                alert('导出失败: ' + e.message);
+            }
+        }
+
+        async function exportShortEDL() {
+            if (state.searchResults.length === 0) {
+                alert('请先进行搜索匹配');
+                return;
+            }
+            const segmentTimes = state.searchResults.filter(r => r.found).map(r => [r.start, r.end]);
+            if (segmentTimes.length === 0) {
+                alert('没有找到匹配的片段');
+                return;
+            }
+            try {
+                const res = await fetch(`${API_BASE}/multicam/export-edl`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        video_paths: state.videoPaths,
+                        segment_times: segmentTimes,
+                        project_name: `short_${state.projectId}`
+                    })
+                });
+                const data = await res.json();
+                if (data.success) {
+                    downloadFile(absoluteToUrlPath(data.edl_path));
+                } else {
+                    alert('导出失败: ' + (data.error || '未知错误'));
+                }
+            } catch (e) {
+                alert('导出失败: ' + e.message);
+            }
+        }
+
+        // ==================== 多机位模式 ====================
+
+        // 机位上传
+        async function handleCamUpload(input, camIndex) {
+            const file = input.files[0];
+            if (!file) return;
+
+            const formData = new FormData();
+            formData.append('file', file);
+
+            try {
+                const res = await fetch(`${API_BASE}/upload`, {
+                    method: 'POST',
+                    body: formData
+                });
+                const data = await res.json();
+
+                if (data.success) {
+                    state.projectId = data.file_id;
+                    if (!state.videoPaths.includes(data.video_path)) {
+                        state.videoPaths.push(data.video_path);
+                    }
+                    state.uploadedCameras[camIndex] = true;
+
+                    // 更新UI
+                    const boxes = document.querySelectorAll('.camera-box');
+                    boxes[camIndex].classList.add('uploaded');
+                    document.getElementById(`cam${camIndex + 1}Filename`).textContent = file.name;
+
+                    // 检查是否可以转录
+                    if (state.videoPaths.length > 0) {
+                        document.getElementById('mcTranscribeEmpty').style.display = 'none';
+                        document.getElementById('mcTranscribeControls').style.display = 'block';
+                    }
+
+                    // 更新多画面预览
+                    updateMultiviewPreview();
+                }
+            } catch (e) {
+                alert('上传失败: ' + e.message);
+            }
+        }
+
+        function updateMultiviewPreview() {
+            const count = state.videoPaths.length;
+            const preview = document.getElementById('multiviewPreview');
+            preview.className = `multiview-preview layout-${count}`;
+            preview.innerHTML = Array(count).fill(0).map((_, i) =>
+                `<div class="cam">机位 ${i + 1}</div>`
+            ).join('');
+        }
+
+        // 多机位转录（真实进度轮询）
+        async function transcribeMulticam() {
+            if (!state.videoPaths[0]) {
+                alert('请先上传机位1视频');
+                return;
+            }
+
+            const btn = document.getElementById('mcTranscribeBtn');
+            const progress = document.getElementById('mcProgressBar');
+            const fill = document.getElementById('mcProgressFill');
+
+            btn.disabled = true;
+            progress.style.display = 'block';
+            showStatus('mcStatus', '正在转录，请稍候...', 'info');
+
+            try {
+                const res = await fetch(`${API_BASE}/multicam/transcribe`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        video_path: state.videoPaths[0],
+                        project_id: state.projectId
+                    })
+                });
+                const data = await res.json();
+
+                if (data.status !== 'started') {
+                    showStatus('mcStatus', '转录启动失败: ' + (data.error || '未知错误'), 'error');
+                    btn.disabled = false;
+                    return;
+                }
+
+                // 轮询进度
+                const projectId = data.project_id;
+                const pollInterval = setInterval(async () => {
+                    try {
+                        const progressRes = await fetch(`${API_BASE}/multicam/transcribe-progress`, {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ project_id: projectId })
+                        });
+                        const progressData = await progressRes.json();
+
+                        fill.style.width = progressData.percent + '%';
+
+                        if (progressData.status === 'done') {
+                            clearInterval(pollInterval);
+                            fill.style.width = '100%';
+                            
+                            // 获取字幕数据
+                            const subtitleRes = await fetch(`${API_BASE}/multicam/subtitles?project_id=${projectId}`);
+                            const subtitleData = await subtitleRes.json();
+                            
+                            if (subtitleData.subtitles) {
+                                state.subtitles = subtitleData.subtitles;
+                                renderMcTimeline();
+                                
+                                document.getElementById('mcTimelineEmpty').style.display = 'none';
+                                document.getElementById('mcMiniTimeline').style.display = 'flex';
+                                document.getElementById('mcSubtitleCount').style.display = 'inline-flex';
+                                document.getElementById('mcSubtitleCount').innerHTML = `<i class="ri-check-line"></i> 已转录 ${state.subtitles.length} 条`;
+                                
+                                document.getElementById('mcQuotesEmpty').style.display = 'none';
+                                document.getElementById('mcQuoteControls').style.display = 'block';
+                                
+                                showStatus('mcStatus', `转录完成！共 ${state.subtitles.length} 条字幕`, 'success');
+                            }
+                        } else if (progressData.status === 'error') {
+                            clearInterval(pollInterval);
+                            showStatus('mcStatus', '转录失败: ' + progressData.error, 'error');
+                        }
+                    } catch (e) {
+                        console.error('轮询进度失败:', e);
+                    }
+                }, 1500);
+
+            } catch (e) {
+                showStatus('mcStatus', '转录失败: ' + e.message, 'error');
+            }
+
+            btn.disabled = false;
+        }
+
+        // 渲染多机位时间轴（含迷你时间轴）
+        function renderMcTimeline() {
+            const timeline = document.getElementById('mcTimeline');
+            timeline.innerHTML = state.subtitles.map((s, i) => `
+                <div class="timeline-item" data-index="${i}">
+                    <div class="timeline-time">
+                        <i class="ri-play-circle-line"></i>
+                        ${formatTime(s.start)} - ${formatTime(s.end)}
+                    </div>
+                    <div class="timeline-text">${s.text}</div>
+                </div>
+            `).join('');
+
+            // 渲染迷你时间轴
+            renderMiniTimeline('mcMiniTimeline', state.subtitles);
+        }
+
+        // 添加多机位台词
+        function addMcQuote() {
+            const input = document.getElementById('mcQuoteInput');
+            const text = input.value.trim();
+            if (!text) return;
+
+            state.quotes.push(text);
+            input.value = '';
+            renderMcQuotes();
+        }
+
+        function renderMcQuotes() {
+            const container = document.getElementById('mcQuotes');
+            container.innerHTML = state.quotes.map((q, i) => `
+                <div class="quote-chip ${state.searchResults[i] ? (state.searchResults[i].found ? 'found' : 'not-found') : ''}" onclick="removeMcQuote(${i})">
+                    <span class="num">${i + 1}</span>
+                    ${q.length > 20 ? q.substring(0, 20) + '...' : q}
+                    <span class="remove"><i class="ri-close-line"></i></span>
+                </div>
+            `).join('');
+        }
+
+        function removeMcQuote(index) {
+            state.quotes.splice(index, 1);
+            if (state.searchResults.length > index) {
+                state.searchResults.splice(index, 1);
+            }
+            renderMcQuotes();
+        }
+
+        // 搜索多机位台词
+        async function searchMcQuotes() {
+            if (state.quotes.length === 0) {
+                alert('请先添加台词');
+                return;
+            }
+
+            const status = document.getElementById('mcSearchStatus');
+            status.className = 'status-msg info';
+            status.textContent = '正在搜索...';
+            status.style.display = 'block';
+
+            try {
+                const res = await fetch(`${API_BASE}/multicam/search`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        quotes: state.quotes,
+                        subtitles: state.subtitles
+                    })
+                });
+                const data = await res.json();
+
+                if (data.success) {
+                    state.searchResults = data.results;
+                    renderMcResults();
+
+                    const found = data.results.filter(r => r.found).length;
+                    status.className = 'status-msg success';
+                    status.textContent = `搜索完成！找到 ${found}/${data.total} 条`;
+
+                    if (found === data.total) {
+                        document.getElementById('mcPreviewCard').style.display = 'block';
+                        document.getElementById('mcExportCard').style.display = 'block';
+                    }
+                }
+            } catch (e) {
+                status.className = 'status-msg error';
+                status.textContent = '搜索失败: ' + e.message;
+            }
+        }
+
+        function renderMcResults() {
+            document.getElementById('mcResultsCard').style.display = 'block';
+            document.getElementById('mcResultsEmpty').style.display = 'none';
+            document.getElementById('mcResultsContent').style.display = 'block';
+            const tbody = document.getElementById('mcResultsBody');
+            tbody.innerHTML = state.searchResults.map(r => `
+                <tr class="${r.found ? 'result-row clickable' : 'result-row'}" ${r.found ? `onclick="jumpToTime(${r.start})"` : ''}>
+                    <td>${r.index}</td>
+                    <td>${r.quote.substring(0, 30)}${r.quote.length > 30 ? '...' : ''}</td>
+                    <td class="${r.found ? 'found' : 'not-found'}">${r.found ? '✓' : '✗'}</td>
+                    <td>${r.start !== null ? formatTime(r.start) : '-'}</td>
+                    <td>${r.strategy || '-'}</td>
+                </tr>
+            `).join('');
+
+            renderMcQuotes();
+        }
+
+        // 拼接多机位视频
+        async function concatMulticamVideo() {
+            if (state.searchResults.length === 0) {
+                alert('请先搜索台词');
+                return;
+            }
+
+            const progress = document.getElementById('mcConcatProgress');
+            const statusEl = document.getElementById('mcConcatStatus');
+
+            progress.style.display = 'block';
+            statusEl.className = 'status-msg info';
+            statusEl.textContent = '正在拼接视频...';
+            statusEl.style.display = 'block';
+
+            let prog = 0;
+            const interval = setInterval(() => {
+                prog = Math.min(prog + 2, 95);
+                document.getElementById('mcConcatFill').style.width = prog + '%';
+            }, 300);
+
+            try {
+                const segmentTimes = state.searchResults
+                    .filter(r => r.found)
+                    .map(r => [r.start, r.end]);
+
+                const res = await fetch(`${API_BASE}/multicam/concat`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        video_paths: state.videoPaths,
+                        segment_times: segmentTimes,
+                        project_id: state.projectId
+                    })
+                });
+                const data = await res.json();
+
+                clearInterval(interval);
+                document.getElementById('mcConcatFill').style.width = '100%';
+
+                if (data.success) {
+                    state.outputPath = data.output_path;
+                    statusEl.className = 'status-msg success';
+                    statusEl.textContent = '拼接完成！';
+                    document.getElementById('mcExportBtns').classList.remove('hidden');
+                } else {
+                    statusEl.className = 'status-msg error';
+                    statusEl.textContent = '拼接失败: ' + data.error;
+                }
+            } catch (e) {
+                clearInterval(interval);
+                statusEl.className = 'status-msg error';
+                statusEl.textContent = '拼接失败: ' + e.message;
+            }
+        }
+
+        function downloadMcVideo() {
+            if (state.outputPath) {
+                downloadFile(absoluteToUrlPath(state.outputPath));
+            }
+        }
+
+        function exportMcFCPXML() {
+            if (state.searchResults.length === 0) {
+                alert('请先进行搜索匹配');
+                return;
+            }
+
+            const segmentTimes = state.searchResults
+                .filter(r => r.found)
+                .map(r => [r.start, r.end]);
+
+            if (segmentTimes.length === 0) {
+                alert('没有找到匹配的片段');
+                return;
+            }
+
+            showStatus('mcConcatStatus', '正在导出FCPXML工程文件...', 'info');
+
+            fetch(`${API_BASE}/multicam/export-fcpxml`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    video_paths: state.videoPaths,
+                    segment_times: segmentTimes,
+                    project_name: `multicam_${state.projectId}`
+                })
+            }).then(res => res.json())
+              .then(data => {
+                  if (data.success) {
+                      showStatus('mcConcatStatus', 'FCPXML工程文件导出成功！', 'success');
+                      downloadFile(absoluteToUrlPath(data.xml_path));
+                  } else {
+                      showStatus('mcConcatStatus', '导出失败: ' + (data.error || '未知错误'), 'error');
+                  }
+              }).catch(err => {
+                  showStatus('mcConcatStatus', '导出失败: ' + err.message, 'error');
+              });
+        }
+
+        function exportMcPRPROJ() {
+            console.log('=== exportMcPRPROJ called ===');
+            console.log('searchResults:', state.searchResults);
+            console.log('videoPaths:', state.videoPaths);
+
+            if (state.searchResults.length === 0) {
+                alert('请先进行搜索匹配');
+                return;
+            }
+
+            const segmentTimes = state.searchResults
+                .filter(r => r.found)
+                .map(r => [r.start, r.end]);
+
+            console.log('segmentTimes:', segmentTimes);
+
+            if (segmentTimes.length === 0) {
+                alert('没有找到匹配的片段');
+                return;
+            }
+
+            showStatus('mcConcatStatus', '正在导出PR XML...', 'info');
+
+            fetch(`${API_BASE}/multicam/export-prproj`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    video_paths: state.videoPaths,
+                    segment_times: segmentTimes,
+                    project_name: `multicam_${state.projectId}`
+                })
+            }).then(res => res.json())
+              .then(data => {
+                  console.log('API response:', data);
+                  if (data.success) {
+                       showStatus('mcConcatStatus', 'PR XML导出成功！', 'success');
+                      downloadFile(absoluteToUrlPath(data.prproj_path));
+                  } else {
+                      showStatus('mcConcatStatus', '导出失败: ' + (data.error || '未知错误'), 'error');
+                  }
+              }).catch(err => {
+                  console.error('Fetch error:', err);
+                  showStatus('mcConcatStatus', '导出失败: ' + err.message, 'error');
+              });
+        }
+
+        function exportMcEDL() {
+            if (state.searchResults.length === 0) {
+                alert('请先进行搜索匹配');
+                return;
+            }
+            const segmentTimes = state.searchResults
+                .filter(r => r.found)
+                .map(r => [r.start, r.end]);
+            if (segmentTimes.length === 0) {
+                alert('没有找到匹配的片段');
+                return;
+            }
+            showStatus('mcConcatStatus', '正在导出EDL文件...', 'info');
+            fetch(`${API_BASE}/multicam/export-edl`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    video_paths: state.videoPaths,
+                    segment_times: segmentTimes,
+                    project_name: `multicam_${state.projectId}`
+                })
+            }).then(res => res.json())
+              .then(data => {
+                  if (data.success) {
+                      showStatus('mcConcatStatus', 'EDL文件导出成功！', 'success');
+                      downloadFile(absoluteToUrlPath(data.edl_path));
+                  } else {
+                      showStatus('mcConcatStatus', '导出失败: ' + (data.error || '未知错误'), 'error');
+                  }
+              }).catch(err => {
+                  showStatus('mcConcatStatus', '导出失败: ' + err.message, 'error');
+              });
+        }
+
+        // ==================== 批量匹配功能 ====================
+
+        // 切换台词搜索模式
+        function switchQuoteMode(prefix, mode) {
+            const singleBtn = document.getElementById(`${prefix}SingleMode`);
+            const bulkBtn = document.getElementById(`${prefix}BulkMode`);
+            const singleSearch = document.getElementById(`${prefix}SingleSearch`);
+            const bulkMatch = document.getElementById(`${prefix}BulkMatch`);
+
+            if (mode === 'single') {
+                singleBtn.classList.add('active');
+                bulkBtn.classList.remove('active');
+                singleSearch.style.display = 'block';
+                bulkMatch.style.display = 'none';
+            } else {
+                singleBtn.classList.remove('active');
+                bulkBtn.classList.add('active');
+                singleSearch.style.display = 'none';
+                bulkMatch.style.display = 'block';
+            }
+        }
+
+        // 短视频批量匹配
+        async function startShortBulkMatch() {
+            await startBulkMatch('short');
+        }
+
+        // 多机位批量匹配
+        async function startMcBulkMatch() {
+            await startBulkMatch('mc');
+        }
+
+        // 通用批量匹配
+        async function startBulkMatch(prefix) {
+            const text = document.getElementById(`${prefix}BulkText`).value.trim();
+            if (!text) {
+                alert('请先粘贴要匹配的文字');
+                return;
+            }
+
+            if (!state.projectId) {
+                alert('请先上传并转录视频');
+                return;
+            }
+
+            const resultsContainer = document.getElementById(`${prefix}BulkResults`);
+            resultsContainer.innerHTML = '<div class="status-msg info">正在匹配中，请稍候...</div>';
+
+            try {
+                const res = await fetch(`${API_BASE}/multicam/bulk-match`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        project_id: state.projectId,
+                        text: text
+                    })
+                });
+                const data = await res.json();
+
+                if (data.success) {
+                    renderBulkResults(`${prefix}BulkResults`, data.matches);
+                } else {
+                    resultsContainer.innerHTML = `<div class="status-msg error">匹配失败: ${data.error || '未知错误'}</div>`;
+                }
+            } catch (e) {
+                resultsContainer.innerHTML = `<div class="status-msg error">匹配失败: ${e.message}</div>`;
+            }
+        }
+
+        // 渲染批量匹配结果
+        function renderBulkResults(containerId, matches) {
+            const container = document.getElementById(containerId);
+            if (!matches || matches.length === 0) {
+                container.innerHTML = '<div class="status-msg warning">没有找到匹配结果</div>';
+                return;
+            }
+
+            let html = `<div class="bulk-summary" style="margin-bottom: 12px; padding: 8px; background: var(--accent-light); border-radius: 6px;">
+                共 ${matches.length} 句，已匹配 ${matches.filter(m => !m.unmatched).length} 句
+            </div>`;
+
+            html += matches.map((match, idx) => {
+                const isUnmatched = match.unmatched;
+                return `
+                    <div class="bulk-result-item ${isUnmatched ? 'unmatched' : ''}">
+                        <div class="bulk-result-header">
+                            <span class="bulk-result-sentence">${idx + 1}. ${match.sentence}</span>
+                            ${isUnmatched ? '<i class="ri-error-warning-line" style="color: var(--error);"></i>' : '<i class="ri-check-line" style="color: var(--success);"></i>'}
+                        </div>
+                        <div class="bulk-result-candidates">
+                            ${match.candidates.map((cand, cidx) => `
+                                <div class="bulk-candidate ${cidx === 0 ? 'selected' : ''}" 
+                                     onclick="selectCandidate(this, '${containerId}', ${idx}, ${cidx})"
+                                     data-match-idx="${idx}" data-cand-idx="${cidx}"
+                                >
+                                    <input type="checkbox" ${cidx === 0 ? 'checked' : ''} onchange="event.stopPropagation()">
+                                    <span class="bulk-candidate-time">${formatTime(cand.start)} - ${formatTime(cand.end)}</span>
+                                    <span class="bulk-candidate-text">${cand.subtitle_text}</span>
+                                    <span class="bulk-candidate-confidence ${cand.confidence >= 0.8 ? 'high' : 'medium'}">
+                                        ${Math.round(cand.confidence * 100)}%
+                                    </span>
+                                </div>
+                            `).join('')}
+                        </div>
+                    </div>
+                `;
+            }).join('');
+
+            // 添加操作按钮
+            html += `
+                <div class="bulk-actions">
+                    <button class="btn btn-secondary" onclick="selectAllCandidates('${containerId}', true)">
+                        <i class="ri-check-double-line"></i> 全选
+                    </button>
+                    <button class="btn btn-secondary" onclick="selectAllCandidates('${containerId}', false)">
+                        <i class="ri-close-circle-line"></i> 取消全选
+                    </button>
+                    <button class="btn btn-primary" onclick="confirmBulkSelection('${containerId}')">
+                        <i class="ri-check-line"></i> 确认选择并导出
+                    </button>
+                </div>
+            `;
+
+            container.innerHTML = html;
+        }
+
+        // 选择候选
+        function selectCandidate(element, containerId, matchIdx, candIdx) {
+            // 取消同组其他选中状态
+            const parent = element.parentElement;
+            parent.querySelectorAll('.bulk-candidate').forEach(el => {
+                el.classList.remove('selected');
+                el.querySelector('input[type="checkbox"]').checked = false;
+            });
+            
+            // 选中当前
+            element.classList.add('selected');
+            element.querySelector('input[type="checkbox"]').checked = true;
+        }
+
+        // 全选/取消全选
+        function selectAllCandidates(containerId, select) {
+            const container = document.getElementById(containerId);
+            container.querySelectorAll('.bulk-candidate').forEach(el => {
+                el.classList.toggle('selected', select);
+                el.querySelector('input[type="checkbox"]').checked = select;
+            });
+        }
+
+        // 确认批量选择
+        function confirmBulkSelection(containerId) {
+            const container = document.getElementById(containerId);
+            const selected = [];
+            
+            container.querySelectorAll('.bulk-result-item').forEach((item, idx) => {
+                const selectedCand = item.querySelector('.bulk-candidate.selected');
+                if (selectedCand) {
+                    const matchIdx = parseInt(selectedCand.dataset.matchIdx);
+                    const candIdx = parseInt(selectedCand.dataset.candIdx);
+                    // 这里需要获取对应的候选数据，简化处理：直接收集时间段
+                    const timeText = selectedCand.querySelector('.bulk-candidate-time').textContent;
+                    const [start, end] = timeText.split(' - ').map(t => {
+                        const [m, s] = t.split(':').map(Number);
+                        return m * 60 + s;
+                    });
+                    selected.push({ start, end });
+                }
+            });
+
+            if (selected.length === 0) {
+                alert('请至少选择一项');
+                return;
+            }
+
+            // 转换为 searchResults 格式，以便复用现有导出功能
+            state.searchResults = selected.map((seg, i) => ({
+                index: i + 1,
+                quote: `片段 ${i + 1}`,
+                found: true,
+                start: seg.start,
+                end: seg.end,
+                strategy: 'bulk-match'
+            }));
+
+            // 显示导出区域
+            const prefix = containerId.includes('short') ? 'short' : 'mc';
+            document.getElementById(`${prefix}ResultsEmpty`).style.display = 'none';
+            document.getElementById(`${prefix}ResultsContent`).style.display = 'block';
+            document.getElementById(`${prefix}ExportGrid`).style.display = 'grid';
+
+            alert(`已选择 ${selected.length} 个片段，可以进行导出操作`);
+        }
+
+        // ==================== 工具函数 ====================
+
+        function formatTime(seconds) {
+            const m = Math.floor(seconds / 60);
+            const s = Math.floor(seconds % 60);
+            return `${m}:${s.toString().padStart(2, '0')}`;
+        }
+
+        function downloadFile(url) {
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = url.split('/').pop();
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+        }
+
+        function showStatus(id, text, type) {
+            const el = document.getElementById(id);
+            el.textContent = text;
+            el.className = `status-msg ${type}`;
+            el.style.display = 'block';
+        }
+
+        function showHelp() {
+            alert('视频字幕拼接工具\n\n1. 上传视频（短视频或多个机位）\n2. Whisper自动转录\n3. 输入想要的台词顺序\n4. 系统自动匹配时间点\n5. 拼接视频并导出FCPXML');
+        }
+
+        // ==================== 字幕提取页面 ====================
+        let extractState = { projectId: null, subtitles: [] };
+
+        async function handleExtractUpload(input) {
+            const file = input.files[0];
+            if (!file) return;
+
+            const formData = new FormData();
+            formData.append('file', file);
+
+            try {
+                const res = await fetch(`${API_BASE}/upload`, {
+                    method: 'POST',
+                    body: formData
+                });
+                const data = await res.json();
+
+                if (data.success) {
+                    extractState.projectId = data.file_id;
+
+                    // 自动开始转录
+                    const statusEl = document.getElementById('apiStatusExtract') || document.getElementById('apiStatus');
+                    statusEl.textContent = '正在转录...';
+                    statusEl.className = 'api-status connected';
+
+                    const res2 = await fetch(`${API_BASE}/process`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            video_path: data.video_path,
+                            file_id: data.file_id
+                        })
+                    });
+                    const data2 = await res2.json();
+
+                    if (data2.success) {
+                        extractState.subtitles = data2.subtitles;
+                        renderExtractTimeline();
+                        document.getElementById('extractResultCard').style.display = 'block';
+                        statusEl.textContent = `转录完成，共 ${data2.subtitle_count} 条字幕`;
+                    } else {
+                        statusEl.textContent = '转录失败: ' + data2.error;
+                        statusEl.className = 'api-status error';
+                    }
+                }
+            } catch (e) {
+                const statusEl = document.getElementById('apiStatusExtract') || document.getElementById('apiStatus');
+                statusEl.textContent = '上传失败: ' + e.message;
+                statusEl.className = 'api-status error';
+            }
+        }
+
+        function renderExtractTimeline() {
+            const timeline = document.getElementById('extractTimeline');
+            timeline.innerHTML = extractState.subtitles.map((s, i) => `
+                <div class="timeline-item">
+                    <div class="timeline-time">
+                        <i class="ri-play-circle-line"></i>
+                        ${formatTime(s.start)} - ${formatTime(s.end)}
+                    </div>
+                    <div class="timeline-text">${s.text}</div>
+                </div>
+            `).join('');
+        }
+
+        function downloadSubtitles() {
+            if (extractState.subtitles.length === 0) return;
+
+            const content = extractState.subtitles.map(s =>
+                `${formatTime(s.start)} --> ${formatTime(s.end)}\n${s.text}`
+            ).join('\n\n');
+
+            const blob = new Blob([content], { type: 'text/plain' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `subtitles_${extractState.projectId}.srt`;
+            a.click();
+            URL.revokeObjectURL(url);
+        }
+
+        // ==================== 视频拼接页面 ====================
+        let concatState = { projectId: null, videoFiles: [] };
+
+        async function handleConcatUpload(input) {
+            const files = Array.from(input.files);
+            if (files.length === 0) return;
+
+            concatState.videoFiles = files;
+
+            const list = document.getElementById('concatFileList');
+            list.innerHTML = files.map((f, i) => `
+                <div class="quote-chip">
+                    <span class="num">${i + 1}</span>
+                    ${f.name}
+                </div>
+            `).join('');
+
+            document.getElementById('concatResultCard').style.display = 'block';
+        }
+
+        async function concatVideos() {
+            if (concatState.videoFiles.length === 0) {
+                alert('请先上传视频');
+                return;
+            }
+
+            const formData = new FormData();
+            concatState.videoFiles.forEach(f => formData.append('videos', f));
+
+            try {
+                const res = await fetch(`${API_BASE}/upload`, {
+                    method: 'POST',
+                    body: formData
+                });
+                const data = await res.json();
+
+                if (data.success) {
+                    // 简单拼接所有视频
+                    const res2 = await fetch(`${API_BASE}/concat`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            video_paths: data.video_paths,
+                            segment_times: [],
+                            project_id: data.project_id
+                        })
+                    });
+                    const data2 = await res2.json();
+
+                    if (data2.success) {
+                        const preview = document.getElementById('concatVideoPreview');
+                        preview.innerHTML = `<video src="${absoluteToUrlPath(data2.output_path)}" controls></video>`;
+                    }
+                }
+            } catch (e) {
+                alert('拼接失败: ' + e.message);
+            }
+        }
+
+        // 拖拽上传
+        document.addEventListener('DOMContentLoaded', () => {
+            const zone = document.getElementById('shortUploadZone');
+
+            zone.addEventListener('dragover', e => {
+                e.preventDefault();
+                zone.classList.add('dragover');
+            });
+
+            zone.addEventListener('dragleave', () => {
+                zone.classList.remove('dragover');
+            });
+
+            zone.addEventListener('drop', e => {
+                e.preventDefault();
+                zone.classList.remove('dragover');
+                const file = e.dataTransfer.files[0];
+                if (file) {
+                    document.getElementById('shortVideoInput').files = e.dataTransfer.files;
+                    handleShortUpload(document.getElementById('shortVideoInput'));
+                }
+            });
+        });
+
+        // 启动
+        init();
+    </script>
+</body>
+</html>
