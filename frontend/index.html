@@ -631,6 +631,17 @@
         .results-table .found { color: var(--success); }
         .results-table .not-found { color: var(--error); }
 
+        /* 搜索结果行 */
+        .result-row {
+            transition: background-color 0.2s;
+        }
+        .result-row.clickable {
+            cursor: pointer;
+        }
+        .result-row.clickable:hover {
+            background-color: var(--accent-light);
+        }
+
         /* 多画面预览 */
         .multiview-preview {
             display: grid;
@@ -1066,14 +1077,14 @@
                 </div>
                 <div class="quote-controls" id="shortQuoteControls" style="display:none;">
                     <div class="quote-input-group">
-                        <input type="text" class="quote-input" id="shortQuoteInput" placeholder="输入台词，回车添加，或粘贴整段文字..." onkeypress="handleQuoteKeypress(event, 'short')" onpaste="handleQuotePaste(event, 'short')">
-                        <button class="btn btn-primary" onclick="addShortQuote()">
-                            <i class="ri-add-line"></i>
-                            添加
+                        <input type="text" class="quote-input" id="shortQuoteInput" placeholder="粘贴整段文字或逐句输入，回车/粘贴自动拆分..." onkeypress="handleQuoteKeypress(event, 'short')" onpaste="handleQuotePaste(event, 'short')">
+                        <button class="btn btn-secondary" onclick="clearShortQuotes()">
+                            <i class="ri-delete-bin-line"></i>
+                            清空
                         </button>
                     </div>
                     <p style="font-size: 0.8rem; color: var(--text-secondary); margin-bottom: 16px;">
-                        支持逐句输入或粘贴整段文字（用逗号/句号/换行分隔）
+                        粘贴整段文字会自动按逗号/句号/换行拆分成多句
                     </p>
                     <div class="selected-quotes" id="shortQuotes"></div>
                     <button class="btn btn-secondary" style="margin-top: 16px;" onclick="searchShortQuotes()">
@@ -1159,10 +1170,6 @@
                     <button class="btn btn-secondary" style="width: 100%; justify-content: center; margin-top: 8px;" onclick="exportShortFCPXML()">
                         <i class="ri-download-line"></i>
                         导出 FCPXML
-                    </button>
-                    <button class="btn btn-secondary" style="width: 100%; justify-content: center; margin-top: 8px;" onclick="exportShortPRPROJ()">
-                        <i class="ri-film-line"></i>
-                        导出 PR XML
                     </button>
                     <button class="btn btn-secondary" style="width: 100%; justify-content: center; margin-top: 8px;" onclick="exportShortEDL()">
                         <i class="ri-file-list-3-line"></i>
@@ -1266,14 +1273,14 @@
                 </div>
                 <div class="quote-controls" id="mcQuoteControls" style="display:none;">
                     <div class="quote-input-group">
-                        <input type="text" class="quote-input" id="mcQuoteInput" placeholder="输入台词，回车添加，或粘贴整段文字..." onkeypress="handleQuoteKeypress(event, 'mc')" onpaste="handleQuotePaste(event, 'mc')">
-                        <button class="btn btn-primary" onclick="addMcQuote()">
-                            <i class="ri-add-line"></i>
-                            添加
+                        <input type="text" class="quote-input" id="mcQuoteInput" placeholder="粘贴整段文字或逐句输入，回车/粘贴自动拆分..." onkeypress="handleQuoteKeypress(event, 'mc')" onpaste="handleQuotePaste(event, 'mc')">
+                        <button class="btn btn-secondary" onclick="clearMcQuotes()">
+                            <i class="ri-delete-bin-line"></i>
+                            清空
                         </button>
                     </div>
                     <p style="font-size: 0.8rem; color: var(--text-secondary); margin-bottom: 16px;">
-                        支持逐句输入或粘贴整段文字（用逗号/句号/换行分隔）
+                        粘贴整段文字会自动按逗号/句号/换行拆分成多句
                     </p>
                     <div class="selected-quotes" id="mcQuotes"></div>
                     <button class="btn btn-secondary" style="margin-top: 16px;" onclick="searchMcQuotes()">
@@ -1352,10 +1359,6 @@
                     <button class="btn btn-secondary" style="width: 100%; margin-top: 8px;" onclick="exportMcFCPXML()">
                         <i class="ri-file-xml-line"></i>
                         导出 FCPXML 工程文件
-                    </button>
-                    <button class="btn btn-secondary" style="width: 100%; margin-top: 8px;" onclick="exportMcPRPROJ()">
-                        <i class="ri-film-line"></i>
-                        导出 PR XML
                     </button>
                     <button class="btn btn-secondary" style="width: 100%; margin-top: 8px;" onclick="exportMcEDL()">
                         <i class="ri-file-list-3-line"></i>
@@ -1733,6 +1736,12 @@
                                 document.getElementById('shortQuotesEmpty').style.display = 'none';
                                 document.getElementById('shortQuoteControls').style.display = 'block';
                                 
+                                // 加载原始视频到预览区域
+                                const previewContainer = document.getElementById('shortVideoPreview');
+                                if (state.videoPaths[0]) {
+                                    previewContainer.innerHTML = `<video src="${absoluteToUrlPath(state.videoPaths[0])}" controls style="width: 100%; height: 100%;"></video>`;
+                                }
+                                
                                 showStatus('shortStatus', `转录完成！共 ${state.subtitles.length} 条字幕`, 'success');
                             }
                         } else if (progressData.status === 'error') {
@@ -1866,24 +1875,16 @@
             // 按逗号、句号、感叹号、问号、换行拆分
             const sentences = text.split(/[,，。！？!?\n]+/).map(s => s.trim()).filter(s => s.length > 0);
             
-            if (sentences.length > 1) {
-                // 粘贴了多句话，逐句添加
+            if (sentences.length >= 1) {
+                // 无论多少句，都逐句添加
                 sentences.forEach(sentence => {
-                    if (mode === 'short') {
-                        state.quotes.push(sentence);
-                    } else {
-                        state.quotes.push(sentence);
-                    }
+                    state.quotes.push(sentence);
                 });
                 if (mode === 'short') {
                     renderShortQuotes();
                 } else {
                     renderMcQuotes();
                 }
-            } else {
-                // 只有一句话，插入到输入框
-                const input = mode === 'short' ? document.getElementById('shortQuoteInput') : document.getElementById('mcQuoteInput');
-                input.value = text.trim();
             }
         }
 
@@ -1900,6 +1901,12 @@
 
         function removeShortQuote(index) {
             state.quotes.splice(index, 1);
+            renderShortQuotes();
+        }
+
+        function clearShortQuotes() {
+            state.quotes = [];
+            state.searchResults = [];
             renderShortQuotes();
         }
 
@@ -1970,7 +1977,9 @@
 
         // 跳转到指定时间点
         function jumpToTime(seconds) {
-            const video = document.querySelector('#shortVideoPreview video');
+            // 尝试获取短视频预览或多机位预览中的视频
+            let video = document.querySelector('#shortVideoPreview video') || 
+                        document.querySelector('#concatVideoPreview video');
             if (video) {
                 video.currentTime = seconds;
                 video.play();
@@ -2178,8 +2187,8 @@
             const count = state.videoPaths.length;
             const preview = document.getElementById('multiviewPreview');
             preview.className = `multiview-preview layout-${count}`;
-            preview.innerHTML = Array(count).fill(0).map((_, i) =>
-                `<div class="cam">机位 ${i + 1}</div>`
+            preview.innerHTML = state.videoPaths.map((path, i) =>
+                `<div class="cam"><video src="${absoluteToUrlPath(path)}" controls style="width: 100%; height: 100%; object-fit: cover;"></video></div>`
             ).join('');
         }
 
@@ -2248,6 +2257,12 @@
                                 document.getElementById('mcQuotesEmpty').style.display = 'none';
                                 document.getElementById('mcQuoteControls').style.display = 'block';
                                 
+                                // 加载机位1视频到预览区域
+                                const previewContainer = document.getElementById('concatVideoPreview');
+                                if (state.videoPaths[0]) {
+                                    previewContainer.innerHTML = `<video src="${absoluteToUrlPath(state.videoPaths[0])}" controls style="width: 100%; height: 100%;"></video>`;
+                                }
+                                
                                 showStatus('mcStatus', `转录完成！共 ${state.subtitles.length} 条字幕`, 'success');
                             }
                         } else if (progressData.status === 'error') {
@@ -2310,6 +2325,12 @@
             if (state.searchResults.length > index) {
                 state.searchResults.splice(index, 1);
             }
+            renderMcQuotes();
+        }
+
+        function clearMcQuotes() {
+            state.quotes = [];
+            state.searchResults = [];
             renderMcQuotes();
         }
 

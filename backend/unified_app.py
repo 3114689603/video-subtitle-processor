@@ -1216,28 +1216,58 @@ def multicam_concat_compat():
         if not video_paths:
             return jsonify({"error": "No video paths"}), 400
 
-        # 调用 FFmpeg 拼接
+        # 调用 FFmpeg 拼接 - 根据 segment_times 截取片段
         output_path = os.path.join(OUTPUT_FOLDER, f"concat_{project_id}.mp4")
 
-        # 创建拼接列表文件
-        list_file = os.path.join(OUTPUT_FOLDER, f"concat_list_{project_id}.txt")
-        with open(list_file, "w", encoding="utf-8") as f:
-            for vp in video_paths:
-                f.write(f"file '{vp}'\n")
-
-        # 执行拼接
-        cmd = [
-            "ffmpeg", "-y", "-f", "concat", "-safe", "0",
-            "-i", list_file,
-            "-c", "copy",
-            output_path
-        ]
-
-        subprocess.run(cmd, check=True, capture_output=True)
-
-        # 清理列表文件
-        if os.path.exists(list_file):
-            os.remove(list_file)
+        if segment_times and len(segment_times) > 0:
+            # 先截取各个片段，再拼接
+            segment_files = []
+            video_path = video_paths[0]  # 使用第一个视频
+            
+            for i, (start, end) in enumerate(segment_times):
+                segment_file = os.path.join(OUTPUT_FOLDER, f"segment_{project_id}_{i}.mp4")
+                duration = end - start
+                
+                # 截取片段: -ss 开始时间 -t 持续时间
+                cmd = [
+                    "ffmpeg", "-y",
+                    "-ss", str(start),
+                    "-t", str(duration),
+                    "-i", video_path,
+                    "-c", "copy",
+                    "-avoid_negative_ts", "make_zero",
+                    segment_file
+                ]
+                
+                subprocess.run(cmd, check=True, capture_output=True)
+                segment_files.append(segment_file)
+            
+            # 创建拼接列表
+            list_file = os.path.join(OUTPUT_FOLDER, f"concat_list_{project_id}.txt")
+            with open(list_file, "w", encoding="utf-8") as f:
+                for seg_file in segment_files:
+                    f.write(f"file '{seg_file}'\n")
+            
+            # 拼接所有片段
+            cmd = [
+                "ffmpeg", "-y", "-f", "concat", "-safe", "0",
+                "-i", list_file,
+                "-c", "copy",
+                output_path
+            ]
+            subprocess.run(cmd, check=True, capture_output=True)
+            
+            # 清理临时文件
+            if os.path.exists(list_file):
+                os.remove(list_file)
+            for seg_file in segment_files:
+                if os.path.exists(seg_file):
+                    os.remove(seg_file)
+        else:
+            # 没有时间段，直接复制原视频
+            video_path = video_paths[0]
+            import shutil
+            shutil.copy2(video_path, output_path)
 
         return jsonify({
             "success": True,
